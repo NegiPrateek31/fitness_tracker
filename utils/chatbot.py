@@ -1,31 +1,37 @@
+# utils/chatbot.py
 import openai
-import os
+import streamlit as st
 
-# Load OpenAI key from Streamlit secrets or environment variable
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Function to safely get OpenAI API key
+def get_openai_key():
+    try:
+        key = st.secrets["OPENAI_API_KEY"]
+        if not key:
+            raise ValueError("OPENAI_API_KEY is empty")
+        return key
+    except KeyError:
+        st.warning("OpenAI API key not found. Chatbot will not work.")
+        return None
 
-def chat_with_ai(user_message: str) -> str:
-    """
-    Handles conversation with OpenAI API for fitness guidance.
-    Returns a smart and motivating response.
-    """
-
-    if not openai.api_key:
-        return "⚠️ OpenAI API key not found. Please configure it in Streamlit secrets."
+# Function to chat with AI
+def chat_with_ai(user_input):
+    key = get_openai_key()
+    if not key:
+        return "⚠️ OpenAI API key is missing. Please set it in Streamlit Secrets."
+    
+    openai.api_key = key
 
     try:
-        # Send message to GPT model
-        response = openai.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a friendly and knowledgeable AI fitness coach."},
-                {"role": "user", "content": user_message}
+                {"role": "system", "content": "You are a helpful fitness coach."},
+                {"role": "user", "content": user_input}
             ],
-            max_tokens=250,
-            temperature=0.8
+            max_tokens=150,
+            temperature=0.7,
         )
-
-        return response.choices[0].message.content.strip()
-
+        answer = response['choices'][0]['message']['content'].strip()
+        return answer
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"⚠️ Error in AI response: {e}"
