@@ -130,7 +130,7 @@ def get_activity_df(username):
     return df
 
 def get_leaderboard():
-    """Return the top 10 users by total steps."""
+    """Return the top 10 users by total steps with ranks starting from 1."""
     conn = sqlite3.connect(DB)
     df = pd.read_sql_query("""
         SELECT u.username, SUM(a.steps) as total_steps, COUNT(a.id) as days
@@ -140,6 +140,9 @@ def get_leaderboard():
         LIMIT 10
     """, conn)
     conn.close()
+
+    # Add Rank column starting from 1
+    df.insert(0, "Rank", range(1, len(df) + 1))
     return df
 
 def get_streak(username):
