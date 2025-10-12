@@ -3,6 +3,5 @@ pandas
 numpy
 matplotlib
 scikit-learn
-sqlite3-bro
-openai
 plotly
+openai
