@@ -98,7 +98,11 @@ else:
     if st.button("Ask"):
         if user_input:
             with st.spinner("Thinking..."):
-                reply = chat_with_ai(user_input)
+                try:
+                    reply = chat_with_ai(user_input)
+                except Exception as e:
+                    reply = f"⚠️ Something went wrong: {e}"
             st.success(reply)
         else:
             st.warning("Please enter a message to start the chat.")
+
