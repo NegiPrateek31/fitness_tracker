@@ -12,11 +12,14 @@ if 'auth' not in st.session_state:
     st.session_state['auth'] = {'logged_in': False, 'user': None}
 
 with st.sidebar:
-    # Assuming the logo is available in 'assets/logo.png'
+    # Attempt to load the logo image
     try:
-        st.image('assets/logo.png', use_column_width=True)
-    except FileNotFoundError:
-        st.title('AI Fitness Tracker') # Fallback if logo not found
+        # FIX: Replaced deprecated 'use_column_width=True' with 'use_container_width=True'
+        st.image('assets/logo.png', use_container_width=True)
+    # Catch a general exception if the image file fails to load in the deployment environment
+    except Exception:
+        # Safe fallback if the image asset path is broken
+        st.title('AI Fitness Tracker (Logo Missing)') 
         
     st.title('AI Fitness Tracker')
     if not st.session_state['auth']['logged_in']:
