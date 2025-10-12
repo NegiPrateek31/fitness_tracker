@@ -89,9 +89,9 @@ def plot_calendar_heatmap(df):
             z=full_matrix,
             x=[f"Week {i+1}" for i in range(num_weeks)], # Display friendly Week 1, Week 2, etc.
             y=DOW_NAMES,
-            # Aesthetic Tweak: Use a softer color scale and increase text size
+            # Removed the invalid 'titleside' argument
             colorscale='Viridis',
-            colorbar={'title': 'Total Steps', 'titleside': 'right', 'titlesize': 12}
+            colorbar={'title': 'Total Steps', 'titlesize': 12} 
     ))
 
     # 6. Customize Layout for Calendar Look
@@ -105,16 +105,23 @@ def plot_calendar_heatmap(df):
     
     # 7. Add Annotations (Steps value inside the box)
     annotations = []
+    # Calculate the median step value for dynamic text coloring
+    non_zero_steps = full_matrix[full_matrix > 0]
+    median_steps = np.percentile(non_zero_steps, 50) if non_zero_steps.size > 0 else 0
+    
     for week_idx in range(num_weeks):
         for day_idx in range(7):
             steps = full_matrix[day_idx, week_idx]
             if steps > 0:
+                # Use white text for higher values (darker background) and black for lower values
+                text_color = "white" if steps > median_steps else "black"
+                
                 annotations.append(
                     dict(
                         x=week_idx,
                         y=day_idx,
                         text=f"{int(steps)}",
-                        font=dict(size=11, color="white" if steps > np.percentile(full_matrix[full_matrix > 0], 50) else "black"),
+                        font=dict(size=11, color=text_color),
                         showarrow=False
                     )
                 )
