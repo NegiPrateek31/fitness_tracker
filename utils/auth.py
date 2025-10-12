@@ -128,16 +128,15 @@ def get_activity_df(username):
     c.execute("SELECT id FROM users WHERE username=?", (username,))
     row = c.fetchone()
     
-    if not row:
-        conn.close()
-        import pandas as pd
-        return pd.DataFrame()
+    # Initialize df to an empty DataFrame, the fallback result
+    df = pd.DataFrame() 
     
-    # CRITICAL FIX: Ensure user_id is assigned before the query runs.
-    user_id = row[0] 
+    if row:
+        # User found, now we can safely assign user_id and execute the query
+        user_id = row[0] 
+        df = pd.read_sql_query("SELECT date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date", conn, params=(user_id,))
     
-    df = pd.read_sql_query("SELECT date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date", conn, params=(user_id,))
-    conn.close()
+    conn.close() # Always close connection
     
     if df.empty:
         return df
