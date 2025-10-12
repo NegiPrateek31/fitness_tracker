@@ -1,5 +1,5 @@
 # utils/chatbot.py
-import google.generativeai as genai
+'''import google.generativeai as genai
 import streamlit as st
 
 # --------------------------- #
@@ -49,3 +49,13 @@ def chat_with_ai(user_input: str) -> str:
     except Exception as e:
         st.error(f"⚠️ AI Error: {e}")
         return "AI service is currently unavailable."
+
+import google.generativeai as genai
+import streamlit as st
+
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])'''
+
+models = genai.list_models()
+st.write("Available models for your key:")
+for m in models:
+    st.write(m.name, m.supported_generation_methods)
