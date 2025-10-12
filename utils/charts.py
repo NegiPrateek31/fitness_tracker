@@ -89,9 +89,14 @@ def plot_calendar_heatmap(df):
             z=full_matrix,
             x=[f"Week {i+1}" for i in range(num_weeks)], # Display friendly Week 1, Week 2, etc.
             y=DOW_NAMES,
-            # Removed the invalid 'titleside' argument
             colorscale='Viridis',
-            colorbar={'title': 'Total Steps', 'titlesize': 12} 
+            # FIXED: 'titlesize' is correctly nested under 'title'
+            colorbar={
+                'title': {
+                    'text': 'Total Steps', 
+                    'font': {'size': 12}
+                }
+            }
     ))
 
     # 6. Customize Layout for Calendar Look
