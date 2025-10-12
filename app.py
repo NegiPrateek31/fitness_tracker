@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user
 from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps
@@ -8,23 +7,22 @@ import pandas as pd
 
 st.set_page_config(page_title='AI Fitness Tracker', layout='wide')
 
-# Initialize DB and demo user
+# Initialize DB and sample user
 init_db()
 ensure_sample_user()
-init_chat_history()  # chatbot session_state
+init_chat_history()
 
-# Auth session
+# Session state for auth
 if 'auth' not in st.session_state:
     st.session_state['auth'] = {'logged_in': False, 'user': None}
 
-# Sidebar - Login / Signup
+# Sidebar
 with st.sidebar:
     st.image('assets/logo.jpg', use_column_width=True)
     st.title('AI Fitness Tracker')
-    
+
     if not st.session_state['auth']['logged_in']:
         tab = st.selectbox('Choose', ['Login','Sign up'])
-        
         if tab == 'Login':
             user = st.text_input('Username')
             pwd = st.text_input('Password', type='password')
@@ -42,7 +40,6 @@ with st.sidebar:
             height = st.number_input('Height (m)', 1.2, 2.2, value=1.7, step=0.01, key='su_height')
             weight = st.number_input('Weight (kg)', 30.0, 200.0, value=70.0, step=0.1, key='su_weight')
             goal = st.selectbox('Goal', ['Stay Fit','Lose Weight','Gain Muscle'], key='su_goal')
-            
             if st.button('Create account'):
                 bmi = round(weight/(height*height),2) if height>0 else 0
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal)
@@ -55,9 +52,9 @@ with st.sidebar:
         if st.button('Logout'):
             st.session_state['auth'] = {'logged_in': False, 'user': None}
 
-# Main Dashboard
 st.title('AI Fitness Tracker Dashboard')
 
+# Dashboard
 if not st.session_state['auth']['logged_in']:
     st.info('Please login or sign up to see personalized dashboard. Demo user: rohanpal / 1234')
     df_demo = get_activity_df('rohanpal')
@@ -70,7 +67,6 @@ else:
     user_info = get_user(user)
     st.markdown(f"**BMI:** {user_info['bmi']}  |  **Goal:** {user_info['goal']}")
 
-    # Log daily activity
     st.subheader('Log today activity')
     cols = st.columns(4)
     steps = cols[0].number_input('Steps', min_value=0, value=5000, step=100)
@@ -90,7 +86,6 @@ else:
     fig3 = plot_calendar_heatmap(df)
     st.plotly_chart(fig3, use_container_width=True)
 
-    # AI Recommendations
     st.subheader('AI Recommendations')
     model = fit_recommender()
     recs = recommend_exercises(user, model, user_info)
@@ -99,14 +94,12 @@ else:
     pred = predict_next_day_steps(user, df)
     st.info(f'Predicted steps for tomorrow: **{int(pred)}**')
 
-    # Streak & Leaderboard
     st.subheader('Streak & Leaderboard')
     streak = get_streak(user)
     st.write(f'🔥 Current active streak: **{streak} days**')
     lb = get_leaderboard()
     st.table(lb)
 
-    # AI Fitness Coach Chatbot
     st.subheader("💬 AI Fitness Coach")
     user_input = st.text_input("Ask me anything about your fitness, diet, or motivation:")
     if st.button("Ask"):
@@ -116,4 +109,3 @@ else:
             st.success(reply)
         else:
             st.warning("Please enter a message to start the chat.")
-
