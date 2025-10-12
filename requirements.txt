@@ -3,6 +3,6 @@ pandas
 numpy
 matplotlib
 scikit-learn
-plotly
-openai
 werkzeug
+openai
+plotly
