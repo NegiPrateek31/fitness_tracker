@@ -10,10 +10,9 @@ def init_chat_history():
         st.session_state["chat_history"] = []
 
 # --------------------------- #
-# Get compatible model
+# Get a model with remaining quota
 # --------------------------- #
-def get_compatible_model():
-    """Return the first available model that supports generateContent."""
+def get_model_with_quota():
     api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key:
         st.error("⚠️ GEMINI_API_KEY not found in Streamlit secrets!")
@@ -23,8 +22,10 @@ def get_compatible_model():
 
     try:
         models = genai.list_models()
-        # Filter models that support text generation
-        compatible = [m for m in models if "generateContent" in m.supported_generation_methods]
+        # Filter models that support content generation
+        compatible = [
+            m for m in models if "generateContent" in m.supported_generation_methods
+        ]
         if not compatible:
             st.error("⚠️ No compatible models found for this API key.")
             st.stop()
@@ -39,7 +40,7 @@ def get_compatible_model():
         st.stop()
 
 # --------------------------- #
-# Chat function
+# Chat function with quota handling
 # --------------------------- #
 def chat_with_ai(user_input: str) -> str:
     """Send user input to Gemini AI and return reply."""
@@ -47,7 +48,7 @@ def chat_with_ai(user_input: str) -> str:
         return "Please enter a question."
 
     try:
-        model = get_compatible_model()
+        model = get_model_with_quota()
         system_prompt = (
             "You are FitBot, an expert AI fitness coach. "
             "Provide concise, positive, and practical advice "
@@ -55,11 +56,20 @@ def chat_with_ai(user_input: str) -> str:
         )
         prompt = f"{system_prompt}\n\nUser: {user_input}"
 
-        response = model.generate_content(prompt)
-        reply = response.text.strip() if response and response.text else "Sorry, I didn’t catch that."
+        try:
+            response = model.generate_content(prompt)
+            reply = response.text.strip() if response and response.text else "Sorry, I didn’t catch that."
+        except Exception as e:
+            # Handle quota exceeded
+            msg = str(e).lower()
+            if "quota" in msg or "429" in msg:
+                reply = "⚠️ AI quota exceeded for today. Please try again tomorrow or upgrade your plan."
+            else:
+                reply = f"⚠️ AI Error: {e}"
 
         # Save to chat history
         st.session_state["chat_history"].append({"user": user_input, "assistant": reply})
         return reply
+
     except Exception as e:
-        return f"⚠️ AI Error: {e}"
+        return f"⚠️ Chatbot initialization failed: {e}"
