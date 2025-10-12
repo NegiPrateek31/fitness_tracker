@@ -19,7 +19,7 @@ if 'auth' not in st.session_state:
 
 # Sidebar - Login / Signup
 with st.sidebar:
-    st.image('assets/logo.jpg', use_column_width=True)
+    st.image('assets/logo.jpg', use_container_width=True)
     st.title('AI Fitness Tracker')
     
     if not st.session_state['auth']['logged_in']:
