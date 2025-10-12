@@ -2,7 +2,7 @@ import streamlit as st
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user
 from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps
 from utils.charts import plot_progress, plot_pie, plot_calendar_heatmap
-from utils.chatbot import chatbot_reply
+from utils.chatbot import chat_with_ai
 import pandas as pd
 
 st.set_page_config(page_title='AI Fitness Tracker', layout='wide')
@@ -96,9 +96,9 @@ else:
     user_input = st.text_input("Ask me anything about your fitness, diet, or motivation:")
 
     if st.button("Ask"):
-     if user_input:
-        with st.spinner("Thinking..."):
-            reply = chat_with_ai(user_input)
-        st.success(reply)
-     else:
-        st.warning("Please enter a message to start the chat.")
+        if user_input:
+            with st.spinner("Thinking..."):
+                reply = chat_with_ai(user_input)
+            st.success(reply)
+        else:
+            st.warning("Please enter a message to start the chat.")
