@@ -92,8 +92,13 @@ else:
     lb = get_leaderboard()
     st.table(lb)
 
-    st.subheader('AI Chatbot')
-    q = st.text_input('Ask the coach a question', key='chat_input')
-    if st.button('Ask'):
-        ans = chatbot_reply(q, user_info)
-        st.write(ans)
+    st.subheader("💬 AI Fitness Coach")
+    user_input = st.text_input("Ask me anything about your fitness, diet, or motivation:")
+
+    if st.button("Ask"):
+     if user_input:
+        with st.spinner("Thinking..."):
+            reply = chat_with_ai(user_input)
+        st.success(reply)
+     else:
+        st.warning("Please enter a message to start the chat.")
