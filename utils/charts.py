@@ -1,82 +1,51 @@
 import plotly.express as px
+import plotly.graph_objects as go # <-- Added Plotly graph objects for handling empty states
 import pandas as pd
-import streamlit as st
 
 def plot_progress(df):
     if df.empty:
-        return None
-    fig = px.line(
-        df,
-        x='date',
-        y=['steps', 'calories', 'water', 'sleep'],
-        markers=True,
-        title="Activity Progress Over Time"
-    )
-    fig.update_layout(xaxis_title="Date", yaxis_title="Values")
+        return go.Figure() # Returning an empty figure instead of {}
+    df2 = df.copy()
+    fig = px.line(df2, x='date', y='steps', title='Steps over time', markers=True)
     return fig
-
 
 def plot_pie(df):
     if df.empty:
-        return None
-    totals = {
-        "Steps": df["steps"].sum(),
-        "Calories": df["calories"].sum(),
-        "Water (L)": df["water"].sum(),
-        "Sleep (hrs)": df["sleep"].sum(),
-    }
-    fig = px.pie(
-        names=list(totals.keys()),
-        values=list(totals.values()),
-        title="Total Activity Breakdown"
-    )
+        return go.Figure() # Returning an empty figure instead of {}
+    values = [df['steps'].sum(), df['calories'].sum()]
+    labels = ['Steps','Calories']
+    fig = px.pie(values=values, names=labels, title='Steps vs Calories (sum)')
     return fig
-
 
 def plot_calendar_heatmap(df):
     if df.empty:
-        return None
+        return go.Figure() # Returning an empty figure instead of {}
+    df2 = df.copy()
+    
+    # Ensure 'date' column is in the expected format before grouping/calculating dates
+    # We use a try-except block here for safety against malformed date strings
+    try:
+        df2['date'] = pd.to_datetime(df2['date']).dt.date
+    except Exception:
+        return go.Figure().add_annotation(text="Error processing date data for heatmap.", showarrow=False)
 
-    df = df.copy()
-    df["date"] = pd.to_datetime(df["date"])
-    df["day"] = df["date"].dt.day
-    df["month"] = df["date"].dt.month_name()
+    heat = df2.groupby('date')['steps'].sum().reset_index()
+    
+    if heat.empty:
+        return go.Figure()
 
-    # Create tabs for two metrics
-    tab1, tab2 = st.tabs(["🔥 Steps Heatmap", "🔥 Calories Heatmap"])
-
-    with tab1:
-        fig_steps = px.density_heatmap(
-            df,
-            x="day",
-            y="month",
-            z="steps",
-            color_continuous_scale="Blues",
-            title="Steps Activity Calendar Heatmap"
-        )
-        fig_steps.update_layout(
-            yaxis={"categoryorder": "array", "categoryarray": [
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-            ]}
-        )
-        st.plotly_chart(fig_steps, use_container_width=True)
-
-    with tab2:
-        fig_calories = px.density_heatmap(
-            df,
-            x="day",
-            y="month",
-            z="calories",
-            color_continuous_scale="Oranges",
-            title="Calories Burned Calendar Heatmap"
-        )
-        fig_calories.update_layout(
-            yaxis={"categoryorder": "array", "categoryarray": [
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-            ]}
-        )
-        st.plotly_chart(fig_calories, use_container_width=True)
-
-    return True  # to confirm rendering success
+    heat['date'] = pd.to_datetime(heat['date'])
+    heat['dow'] = heat['date'].dt.weekday
+    heat['week'] = (heat['date'] - heat['date'].min()).dt.days // 7
+    
+    # Handle the edge case where there is not enough data for pivoting
+    if heat['week'].max() < 0:
+        return go.Figure()
+        
+    pivot = heat.pivot(index='dow', columns='week', values='steps').fillna(0)
+    
+    if pivot.empty:
+        return go.Figure()
+        
+    fig = px.imshow(pivot, labels=dict(x='Week', y='Day of week', color='Steps'), title='Activity Heatmap (by week/dow)')
+    return fig
