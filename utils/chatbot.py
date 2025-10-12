@@ -1,45 +1,33 @@
 # utils/chatbot.py
-import openai
+from openai import OpenAI
 import streamlit as st
 
+# Initialize client
+client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", None))
+
+# Initialize chat history in session state
 def init_chat_history():
-    """Initialize chat history in session_state safely."""
-    if 'chat_history' not in st.session_state:
-        st.session_state['chat_history'] = []
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
-def get_openai_key():
-    """Safely get OpenAI API key from Streamlit secrets."""
-    try:
-        key = st.secrets["OPENAI_API_KEY"]
-        if not key:
-            raise ValueError("OPENAI_API_KEY is empty")
-        return key
-    except KeyError:
-        st.warning("OpenAI API key is not set. Chatbot will not work.")
-        return None
-
+# Function to chat with AI using new OpenAI API (>=1.0)
 def chat_with_ai(user_input):
-    """Get response from OpenAI GPT model."""
-    init_chat_history()  # ensure session_state exists
-    key = get_openai_key()
-    if not key:
-        return "⚠️ OpenAI API key missing. Set it in Streamlit Secrets."
+    if not client.api_key:
+        return "⚠️ Missing API key in Streamlit secrets."
 
-    openai.api_key = key
+    # Append user message to chat history
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful fitness coach."},
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=150,
+            messages=st.session_state.chat_history,
             temperature=0.7,
         )
-        answer = response['choices'][0]['message']['content'].strip()
-        st.session_state['chat_history'].append(("User", user_input))
-        st.session_state['chat_history'].append(("AI", answer))
-        return answer
+
+        reply = response.choices[0].message.content
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        return reply
+
     except Exception as e:
-        return f"⚠️ Error in AI response: {e}"
+        return f"⚠️ Error in AI response:\n\n{str(e)}"
