@@ -1,33 +1,51 @@
 # utils/chatbot.py
-from openai import OpenAI
+import google.generativeai as genai
 import streamlit as st
 
-# Initialize client
-client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", None))
+# --------------------------- #
+# Initialize Gemini Chatbot
+# --------------------------- #
 
-# Initialize chat history in session state
 def init_chat_history():
+    """Initialize chat history in session_state if not present."""
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+        st.session_state["chat_history"] = []
 
-# Function to chat with AI using new OpenAI API (>=1.0)
-def chat_with_ai(user_input):
-    if not client.api_key:
-        return "⚠️ Missing API key in Streamlit secrets."
+def get_model():
+    """Load and configure Gemini model using Streamlit secrets."""
+    api_key = st.secrets.get("GEMINI_API_KEY")
+    if not api_key:
+        st.error("⚠️ Gemini API key missing! Add GEMINI_API_KEY in Streamlit secrets.")
+        st.stop()
 
-    # Append user message to chat history
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel("gemini-1.5-flash")
 
+# --------------------------- #
+# Chat Function
+# --------------------------- #
+
+def chat_with_ai(user_input: str) -> str:
+    """Send user input to Gemini and return its reply."""
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=st.session_state.chat_history,
-            temperature=0.7,
+        model = get_model()
+        prompt = (
+            "You are FitBot, an expert AI fitness and wellness assistant. "
+            "Be friendly, concise, and motivational while helping users with "
+            "fitness, diet, and health advice.\n\n"
+            f"User: {user_input}"
         )
 
-        reply = response.choices[0].message.content
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        response = model.generate_content(prompt)
+
+        # Extract reply safely
+        reply = response.text.strip() if response and response.text else "Sorry, I didn’t quite catch that."
+
+        # Store in chat history
+        st.session_state["chat_history"].append({"user": user_input, "assistant": reply})
+
         return reply
 
     except Exception as e:
-        return f"⚠️ Error in AI response:\n\n{str(e)}"
+        st.error(f"⚠️ AI Error: {e}")
+        return "AI service is currently unavailable."
