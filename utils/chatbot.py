@@ -19,7 +19,7 @@ def get_model():
         st.stop()
 
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-1.5-flash")
+    return genai.GenerativeModel("gemini-pro")
 
 # --------------------------- #
 # Chat Function
