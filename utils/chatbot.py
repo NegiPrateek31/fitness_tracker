@@ -1,61 +1,65 @@
 # utils/chatbot.py
-'''import google.generativeai as genai
 import streamlit as st
+import google.generativeai as genai
 
 # --------------------------- #
-# Initialize Gemini Chatbot
+# Initialize chat history
 # --------------------------- #
-
 def init_chat_history():
-    """Initialize chat history in session_state if not present."""
     if "chat_history" not in st.session_state:
         st.session_state["chat_history"] = []
 
-def get_model():
-    """Load and configure Gemini model using Streamlit secrets."""
+# --------------------------- #
+# Get compatible model
+# --------------------------- #
+def get_compatible_model():
+    """Return the first available model that supports generateContent."""
     api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key:
-        st.error("⚠️ Gemini API key missing! Add GEMINI_API_KEY in Streamlit secrets.")
+        st.error("⚠️ GEMINI_API_KEY not found in Streamlit secrets!")
         st.stop()
 
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-pro")
 
-# --------------------------- #
-# Chat Function
-# --------------------------- #
-
-def chat_with_ai(user_input: str) -> str:
-    """Send user input to Gemini and return its reply."""
     try:
-        model = get_model()
-        prompt = (
-            "You are FitBot, an expert AI fitness and wellness assistant. "
-            "Be friendly, concise, and motivational while helping users with "
-            "fitness, diet, and health advice.\n\n"
-            f"User: {user_input}"
+        models = genai.list_models()
+        # Filter models that support text generation
+        compatible = [m for m in models if "generateContent" in m.supported_generation_methods]
+        if not compatible:
+            st.error("⚠️ No compatible models found for this API key.")
+            st.stop()
+        # Prefer latest Gemini 1.5-flash if available
+        for m in compatible:
+            if "gemini-1.5-flash" in m.name:
+                return genai.GenerativeModel(m.name)
+        # Otherwise return the first compatible model
+        return genai.GenerativeModel(compatible[0].name)
+    except Exception as e:
+        st.error(f"⚠️ Failed to list models: {e}")
+        st.stop()
+
+# --------------------------- #
+# Chat function
+# --------------------------- #
+def chat_with_ai(user_input: str) -> str:
+    """Send user input to Gemini AI and return reply."""
+    if not user_input.strip():
+        return "Please enter a question."
+
+    try:
+        model = get_compatible_model()
+        system_prompt = (
+            "You are FitBot, an expert AI fitness coach. "
+            "Provide concise, positive, and practical advice "
+            "about exercise, nutrition, and wellness."
         )
+        prompt = f"{system_prompt}\n\nUser: {user_input}"
 
         response = model.generate_content(prompt)
+        reply = response.text.strip() if response and response.text else "Sorry, I didn’t catch that."
 
-        # Extract reply safely
-        reply = response.text.strip() if response and response.text else "Sorry, I didn’t quite catch that."
-
-        # Store in chat history
+        # Save to chat history
         st.session_state["chat_history"].append({"user": user_input, "assistant": reply})
-
         return reply
-
     except Exception as e:
-        st.error(f"⚠️ AI Error: {e}")
-        return "AI service is currently unavailable."
-
-import google.generativeai as genai
-import streamlit as st
-
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])'''
-
-models = genai.list_models()
-st.write("Available models for your key:")
-for m in models:
-    st.write(m.name, m.supported_generation_methods)
+        return f"⚠️ AI Error: {e}"
