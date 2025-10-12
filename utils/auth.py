@@ -127,16 +127,21 @@ def get_activity_df(username):
     c = conn.cursor()
     c.execute("SELECT id FROM users WHERE username=?", (username,))
     row = c.fetchone()
+    
     if not row:
         conn.close()
         import pandas as pd
         return pd.DataFrame()
-    # FIX: Assign user_id from the fetched row. If the row was found, we get the ID.
+    
+    # CRITICAL FIX: Ensure user_id is assigned before the query runs.
     user_id = row[0] 
+    
     df = pd.read_sql_query("SELECT date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date", conn, params=(user_id,))
     conn.close()
+    
     if df.empty:
         return df
+    
     df['date'] = pd.to_datetime(df['date'])
     return df
 
