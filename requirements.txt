@@ -1,7 +1,8 @@
 streamlit
 pandas
 numpy
-scikit-learn
-plotly
 matplotlib
-werkzeug
+scikit-learn
+sqlite3-bro
+openai
+plotly
