@@ -3,7 +3,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, timedelta
 import pandas as pd
 
-# ✅ Streamlit-safe database path (absolute, works both locally and on cloud)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(BASE_DIR, "../data/fitness_users.db")
 
