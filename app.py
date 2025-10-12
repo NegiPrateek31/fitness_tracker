@@ -13,7 +13,7 @@ if 'auth' not in st.session_state:
     st.session_state['auth'] = {'logged_in': False, 'user': None}
 
 with st.sidebar:
-    st.image('assets/logo.png', use_column_width=True)
+    st.image('assets/logo.jpg', use_column_width=True)
     st.title('AI Fitness Tracker')
     if not st.session_state['auth']['logged_in']:
         tab = st.selectbox('Choose', ['Login','Sign up'])
