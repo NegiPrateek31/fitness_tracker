@@ -143,7 +143,11 @@ def get_leaderboard():
 
     # Add Rank column starting from 1
     df.insert(0, "Rank", range(1, len(df) + 1))
+
+    # Reset index to avoid the extra 0 column in Streamlit
+    df.reset_index(drop=True, inplace=True)
     return df
+
 
 def get_streak(username):
     """Calculate the user's current activity streak in days."""
