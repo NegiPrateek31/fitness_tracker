@@ -49,56 +49,63 @@ def plot_calendar_heatmap(df):
     
     df_cal = df.copy()
     
-    # 1. Prepare Date Columns (Use ISO Weekday: 1=Mon, 7=Sun)
-    df_cal['date'] = pd.to_datetime(df_cal['date']).dt.date
-    df_cal['day_of_week'] = pd.to_datetime(df_cal['date']).dt.dayofweek # 0=Mon, 6=Sun
-    df_cal['week_of_year'] = pd.to_datetime(df_cal['date']).dt.isocalendar().week.astype(int)
+    # 1. Prepare Date Columns and create a continuous week number for indexing
+    df_cal['date'] = pd.to_datetime(df_cal['date'])
+    df_cal['day_of_week'] = df_cal['date'].dt.dayofweek # 0=Mon, 6=Sun
+    
+    # Calculate continuous week number (Fix for cross-year ISO week issue)
+    min_date = df_cal['date'].min()
+    df_cal['week_number'] = ((df_cal['date'] - min_date).dt.days // 7).astype(int)
     
     # 2. Aggregate data (Steps per day)
-    heat = df_cal.groupby(['date', 'day_of_week', 'week_of_year'])['steps'].sum().reset_index()
+    heat = df_cal.groupby(['date', 'day_of_week', 'week_number'])['steps'].sum().reset_index()
     
     # 3. Create pivot table for heatmap structure
-    # Rows: Day of Week (0-6), Columns: Week of Year
+    # Rows: Day of Week (0-6), Columns: Week Number
     pivot = heat.pivot_table(
         index='day_of_week', 
-        columns='week_of_year', 
+        columns='week_number', 
         values='steps', 
         fill_value=0
     )
     
-    # 4. Handle sparse data (if data doesn't start on a Monday, pad the first column)
+    # 4. Create full matrix to handle sparse days (essential for calendar grid)
     min_week = pivot.columns.min()
     max_week = pivot.columns.max()
 
-    # Create full matrix with zero steps for missing days
-    full_matrix = np.zeros((7, max_week - min_week + 1))
+    num_weeks = max_week - min_week + 1
+    
+    # Rows: 7 days of week, Columns: contiguous weeks
+    full_matrix = np.zeros((7, num_weeks))
     
     # Populate the full matrix with steps from the pivot table
-    for i, week in enumerate(range(min_week, max_week + 1)):
-        if week in pivot.columns:
-            full_matrix[pivot.index, i] = pivot[week]
+    for i, week_num in enumerate(range(min_week, max_week + 1)):
+        if week_num in pivot.columns:
+            # pivot.index is day_of_week (0-6)
+            full_matrix[pivot.index, i] = pivot[week_num]
 
     # 5. Create Heatmap
     fig = go.Figure(data=go.Heatmap(
             z=full_matrix,
-            x=[f"Week {i}" for i in range(min_week, max_week + 1)],
+            x=[f"Week {i+1}" for i in range(num_weeks)], # Display friendly Week 1, Week 2, etc.
             y=DOW_NAMES,
-            colorscale='YlGnBu',
-            colorbar={'title': 'Total Steps', 'titleside': 'right'}
+            # Aesthetic Tweak: Use a softer color scale and increase text size
+            colorscale='Viridis',
+            colorbar={'title': 'Total Steps', 'titleside': 'right', 'titlesize': 12}
     ))
 
     # 6. Customize Layout for Calendar Look
     fig.update_layout(
-        title={'text': 'Activity Heatmap (Steps Logged)', 'x': 0.5},
-        xaxis={'title': 'Week of Year'},
-        yaxis={'title': 'Day of Week', 'autorange': 'reversed'}, # Sunday is traditionally at the bottom
-        height=400, # Calendar heatmaps look better when constrained vertically
-        margin=dict(l=50, r=50, t=50, b=50)
+        title={'text': 'Activity Heatmap (Steps Logged)', 'x': 0.5, 'font': {'size': 16}},
+        xaxis={'title': '', 'tickmode': 'array', 'tickvals': list(range(num_weeks)), 'ticktext': [f"Week {i+1}" for i in range(num_weeks)]},
+        yaxis={'title': '', 'autorange': 'reversed', 'tickangle': 0},
+        height=450, # Slightly increased height
+        margin=dict(l=30, r=30, t=50, b=30),
     )
     
-    # 7. Add Annotations (Optional, but makes it look more polished)
+    # 7. Add Annotations (Steps value inside the box)
     annotations = []
-    for week_idx, week in enumerate(range(min_week, max_week + 1)):
+    for week_idx in range(num_weeks):
         for day_idx in range(7):
             steps = full_matrix[day_idx, week_idx]
             if steps > 0:
@@ -107,7 +114,7 @@ def plot_calendar_heatmap(df):
                         x=week_idx,
                         y=day_idx,
                         text=f"{int(steps)}",
-                        font=dict(size=10, color="black"),
+                        font=dict(size=11, color="white" if steps > np.percentile(full_matrix[full_matrix > 0], 50) else "black"),
                         showarrow=False
                     )
                 )
