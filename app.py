@@ -1,8 +1,7 @@
 import streamlit as st
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user
-from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories # CHANGED IMPORT
+from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories 
 from utils.charts import plot_progress, plot_pie, plot_calendar_heatmap
-from utils.chatbot import chatbot_reply
 import pandas as pd
 
 st.set_page_config(page_title='AI Fitness Tracker', layout='wide')
@@ -90,7 +89,7 @@ else:
     recs = recommend_exercises(user, recommender_models, user_info)
     
     # Run the combined prediction model
-    predicted_steps, predicted_calories = predict_next_day_steps_and_calories(user, df) # NEW FUNCTION CALL
+    predicted_steps, predicted_calories = predict_next_day_steps_and_calories(user, df) 
 
     # Display Recommendations
     st.markdown('**Recommended Exercises (Based on Profile):**')
@@ -101,16 +100,10 @@ else:
     st.markdown('**Your Predicted Daily Goals:**')
     col_pred1, col_pred2 = st.columns(2)
     col_pred1.info(f'Predicted Steps for Tomorrow: **{predicted_steps:,}**')
-    col_pred2.info(f'Predicted Calories to Burn: **{predicted_calories:,}** (Based on your activity trend)') # NEW DISPLAY
+    col_pred2.info(f'Predicted Calories to Burn: **{predicted_calories:,}** (Based on your activity trend)') 
 
     st.subheader('Streak & Leaderboard')
     streak = get_streak(user)
     st.write(f'🔥 Current active streak: **{streak} days**')
     lb = get_leaderboard()
     st.table(lb)
-
-    st.subheader('AI Chatbot')
-    q = st.text_input('Ask the coach a question', key='chat_input')
-    if st.button('Ask'):
-        ans = chatbot_reply(q, user_info)
-        st.write(ans)
