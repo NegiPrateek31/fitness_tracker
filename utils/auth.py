@@ -3,13 +3,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, timedelta
 import pandas as pd
 
-# ✅ Streamlit-safe database path (absolute, works both locally and on cloud)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(BASE_DIR, "../data/fitness_users.db")
+DB = os.path.join('data','fitness_users.db')
 
 def init_db():
-    """Initialize the SQLite database with tables for users and activity."""
-    os.makedirs(os.path.join(BASE_DIR, "../data"), exist_ok=True)
+    os.makedirs('data', exist_ok=True)
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -35,30 +32,47 @@ def init_db():
     conn.close()
 
 def ensure_sample_user():
-    """Ensure a sample user (rohanpal) exists with demo activity data."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE username=?", ('rohanpal',))
-    row = c.fetchone()
-    if not row:
-        hashed = generate_password_hash('1234')
-        c.execute("INSERT INTO users (username, password, age, height, weight, bmi, goal) VALUES (?,?,?,?,?,?,?)",
-                  ('rohanpal', hashed, 28, 1.75, 70, 23.0, 'Stay Fit'))
-        user_id = c.lastrowid
-        today = date.today()
-        for i in range(14):
-            d = (today - timedelta(days=13 - i)).isoformat()
-            steps = 4000 + i * 500
-            calories = 250 + i * 20
-            water = 1.5 + (i % 3) * 0.2
-            sleep = 6.5 + (i % 4) * 0.3
-            c.execute("INSERT INTO activity (user_id, date, steps, calories, water, sleep) VALUES (?,?,?,?,?,?)",
-                      (user_id, d, steps, calories, water, sleep))
-        conn.commit()
+    
+    # 1. Base Sample User (Rohan)
+    users_to_add = {
+        'rohanpal': {'pwd': '1234', 'age': 28, 'height': 1.75, 'weight': 70, 'bmi': 23.0, 'goal': 'Stay Fit', 'step_multiplier': 500, 'base_steps': 4000},
+        'fitguru': {'pwd': '1234', 'age': 35, 'height': 1.80, 'weight': 80, 'bmi': 24.7, 'goal': 'Gain Muscle', 'step_multiplier': 800, 'base_steps': 10000},
+        'marathoner': {'pwd': '1234', 'age': 45, 'height': 1.65, 'weight': 60, 'bmi': 22.0, 'goal': 'Stay Fit', 'step_multiplier': 1200, 'base_steps': 15000},
+        'healthfan': {'pwd': '1234', 'age': 22, 'height': 1.68, 'weight': 55, 'bmi': 19.4, 'goal': 'Lose Weight', 'step_multiplier': 400, 'base_steps': 7500},
+        'sleepyhead': {'pwd': '1234', 'age': 50, 'height': 1.72, 'weight': 90, 'bmi': 30.4, 'goal': 'Lose Weight', 'step_multiplier': 100, 'base_steps': 2000},
+    }
+    
+    today = date.today()
+    
+    for username, data in users_to_add.items():
+        c.execute("SELECT id FROM users WHERE username=?", (username,))
+        row = c.fetchone()
+        
+        if not row:
+            hashed = generate_password_hash(data['pwd'])
+            c.execute("INSERT INTO users (username, password, age, height, weight, bmi, goal) VALUES (?,?,?,?,?,?,?)",
+                      (username, hashed, data['age'], data['height'], data['weight'], data['bmi'], data['goal']))
+            user_id = c.lastrowid
+            
+            # Log 14 days of activity for each new user
+            for i in range(14):
+                d = (today - timedelta(days=13-i)).isoformat()
+                
+                # Use user-specific step and calorie patterns
+                steps = data['base_steps'] + i * data['step_multiplier']
+                calories = 250 + i * 20 + int(data['base_steps'] * 0.05)
+                water = 1.5 + (i%3)*0.2
+                sleep = 6.5 + (i%4)*0.3
+                
+                c.execute("INSERT INTO activity (user_id, date, steps, calories, water, sleep) VALUES (?,?,?,?,?,?)",
+                          (user_id, d, steps, calories, water, sleep))
+                          
+    conn.commit()
     conn.close()
 
 def signup_user(username, password, age, height, weight, bmi, goal):
-    """Register a new user into the database."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     try:
@@ -73,7 +87,6 @@ def signup_user(username, password, age, height, weight, bmi, goal):
         conn.close()
 
 def login_user(username, password):
-    """Validate a user's login credentials."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute("SELECT password FROM users WHERE username=?", (username,))
@@ -84,7 +97,6 @@ def login_user(username, password):
     return False
 
 def get_user(username):
-    """Retrieve a user's profile details as a dictionary."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE username=?", (username,))
@@ -92,11 +104,10 @@ def get_user(username):
     conn.close()
     if not row:
         return None
-    keys = ['id', 'username', 'password', 'age', 'height', 'weight', 'bmi', 'goal']
+    keys = ['id','username','password','age','height','weight','bmi','goal']
     return dict(zip(keys, row))
 
 def add_activity(username, steps, calories, water, sleep):
-    """Add a daily activity record for a user."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute("SELECT id FROM users WHERE username=?", (username,))
@@ -112,17 +123,16 @@ def add_activity(username, steps, calories, water, sleep):
     conn.close()
 
 def get_activity_df(username):
-    """Return all user activity data as a Pandas DataFrame."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute("SELECT id FROM users WHERE username=?", (username,))
     row = c.fetchone()
     if not row:
         conn.close()
+        import pandas as pd
         return pd.DataFrame()
     user_id = row[0]
-    df = pd.read_sql_query("SELECT date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date",
-                           conn, params=(user_id,))
+    df = pd.read_sql_query("SELECT date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date", conn, params=(user_id,))
     conn.close()
     if df.empty:
         return df
@@ -130,27 +140,20 @@ def get_activity_df(username):
     return df
 
 def get_leaderboard():
-    """Return the top 10 users by total steps with ranks starting from 1."""
     conn = sqlite3.connect(DB)
-    df = pd.read_sql_query("""
-        SELECT u.username, SUM(a.steps) as total_steps, COUNT(a.id) as days
-        FROM activity a JOIN users u ON a.user_id = u.id
-        GROUP BY u.username
-        ORDER BY total_steps DESC
-        LIMIT 10
-    """, conn)
+    # FIX: Select only username, total_steps, and days. The old query included the user's hidden 'id', which appeared as the first column in the Streamlit table.
+    df = pd.read_sql_query("SELECT u.username, SUM(a.steps) as total_steps, COUNT(a.id) as days FROM activity a JOIN users u ON a.user_id=u.id GROUP BY u.username ORDER BY total_steps DESC LIMIT 10", conn)
     conn.close()
-
-    # Add Rank column starting from 1
-    df.insert(0, "Rank", range(1, len(df) + 1))
-
-    # Reset index to avoid the extra 0 column in Streamlit
-    df.reset_index(drop=True, inplace=True)
+    # Streamlit's st.table auto-generates an index column (starting from 0). 
+    # To prevent confusion, let's explicitly rename the index for a cleaner look:
+    df.index.name = 'Rank'
+    df = df.reset_index(drop=False)
+    df['Rank'] = df.index + 1
+    # Drop the internal index column that Streamlit usually adds
+    df = df.set_index('Rank')
     return df
 
-
 def get_streak(username):
-    """Calculate the user's current activity streak in days."""
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute("SELECT id FROM users WHERE username=?", (username,))
@@ -165,6 +168,7 @@ def get_streak(username):
     if not rows:
         return 0
     streak = 0
+    from datetime import date, timedelta
     today = date.today()
     for i, r in enumerate(rows):
         d = date.fromisoformat(r[0])
