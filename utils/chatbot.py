@@ -60,12 +60,11 @@ def chat_with_ai(user_input: str) -> str:
             response = model.generate_content(prompt)
             reply = response.text.strip() if response and response.text else "Sorry, I didn’t catch that."
         except Exception as e:
-            # Handle quota exceeded
-            msg = str(e).lower()
-            if "quota" in msg or "429" in msg:
-                reply = "⚠️ AI quota exceeded for today. Please try again tomorrow or upgrade your plan."
-            else:
-                reply = f"⚠️ AI Error: {e}"
+            # --- TEMPORARY DEBUGGING CHANGE ---
+            # This will display the full, raw error from Google in your app's UI
+            st.error(f"RAW ERROR FROM GOOGLE: {e}")
+            # This line will make the app crash and print the full error to your logs/terminal
+            raise e
 
         # Save to chat history
         st.session_state["chat_history"].append({"user": user_input, "assistant": reply})
