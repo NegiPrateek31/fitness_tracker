@@ -122,6 +122,14 @@ with chatbot_tab:
     # Initialize chat history. This function is from your chatbot.py file.
     init_chat_history()
 
+    with chatbot_tab:
+    st.title("AI FitBot")
+    
+    # Add this line for debugging
+    st.write("Current Key Loaded:", st.secrets.get("GEMINI_API_KEY")) 
+    
+    st.markdown("Your personal AI fitness coach...")
+
     # Display chat messages from history on app rerun
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
