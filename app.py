@@ -3,7 +3,7 @@ import streamlit as st
 from utils.chatbot import init_chat_history, chat_with_ai
 # --- End of New Imports ---
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user
-from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories 
+from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories
 from utils.charts import plot_progress, plot_pie, plot_calendar_heatmap
 import pandas as pd
 
@@ -18,8 +18,8 @@ with st.sidebar:
     try:
         st.image('assets/logo.png', use_container_width=True)
     except Exception:
-        st.title('AI Fitness Tracker (Logo Missing)') 
-        
+        st.title('AI Fitness Tracker (Logo Missing)')
+
     st.title('AI Fitness Tracker')
     if not st.session_state['auth']['logged_in']:
         tab = st.selectbox('Choose', ['Login','Sign up'])
@@ -54,7 +54,7 @@ with st.sidebar:
             st.session_state['auth'] = {'logged_in': False, 'user': None}
             st.rerun() # Rerun to update UI after logout
 
-# --- ✨ New Tabbed Interface ---
+# --- New Tabbed Interface ---
 # Create tabs for the Dashboard and the new Chatbot
 dashboard_tab, chatbot_tab = st.tabs(["📊 Dashboard", "🤖 AI FitBot"])
 
@@ -72,7 +72,7 @@ with dashboard_tab:
         user = st.session_state['auth']['user']
         st.header(f'Welcome, {user} 👋')
         user_info = get_user(user)
-        st.markdown(f"**BMI:** {user_info['bmi']}  |  **Goal:** {user_info['goal']}")
+        st.markdown(f"**BMI:** {user_info['bmi']} | **Goal:** {user_info['goal']}")
         st.subheader('Log today activity')
         cols = st.columns(4)
         steps = cols[0].number_input('Steps', min_value=0, value=5000, step=100)
@@ -93,20 +93,20 @@ with dashboard_tab:
         st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader('AI Recommendations and Predictions')
-        
-        recommender_models = fit_recommender() 
+
+        recommender_models = fit_recommender()
         recs = recommend_exercises(user, recommender_models, user_info)
-        
-        predicted_steps, predicted_calories = predict_next_day_steps_and_calories(user, df) 
+
+        predicted_steps, predicted_calories = predict_next_day_steps_and_calories(user, df)
 
         st.markdown('**Recommended Exercises (Based on Profile):**')
         for r in recs:
             st.write(f'- {r}')
-            
+
         st.markdown('**Your Predicted Daily Goals:**')
         col_pred1, col_pred2 = st.columns(2)
         col_pred1.info(f'Predicted Steps for Tomorrow: **{predicted_steps:,}**')
-        col_pred2.info(f'Predicted Calories to Burn: **{predicted_calories:,}** (Based on your activity trend)') 
+        col_pred2.info(f'Predicted Calories to Burn: **{predicted_calories:,}** (Based on your activity trend)')
 
         st.subheader('Streak & Leaderboard')
         streak = get_streak(user)
@@ -114,21 +114,18 @@ with dashboard_tab:
         lb = get_leaderboard()
         st.table(lb)
 
-# --- ✨ New Code for the Chatbot Tab ---
+# --- Corrected Code for the Chatbot Tab ---
 with chatbot_tab:
     st.title("AI FitBot")
     st.markdown("Your personal AI fitness coach. Ask me anything about exercise, nutrition, or wellness!")
 
+    # This is the temporary debugging line we discussed.
+    # It's helpful for confirming that the correct key is loaded.
+    # You can remove it once everything is working.
+    st.write("Current Key Loaded:", st.secrets.get("GEMINI_API_KEY"))
+
     # Initialize chat history. This function is from your chatbot.py file.
     init_chat_history()
-
-    with chatbot_tab:
-    st.title("AI FitBot")
-    
-    # Add this line for debugging
-    st.write("Current Key Loaded:", st.secrets.get("GEMINI_API_KEY")) 
-    
-    st.markdown("Your personal AI fitness coach...")
 
     # Display chat messages from history on app rerun
     for message in st.session_state.chat_history:
@@ -148,12 +145,12 @@ with chatbot_tab:
             # Call the chat function from your chatbot.py file
             reply = chat_with_ai(prompt)
 
-            # ✨ This is the improved error handling ✨
+            # This is the improved error handling
             # If the reply is the quota warning, display it in a st.warning box
             if reply.startswith("⚠️"):
                 st.warning(reply)
             else:
                 st.markdown(reply)
-            
+
             # Add assistant response to chat history
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
