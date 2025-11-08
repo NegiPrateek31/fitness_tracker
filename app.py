@@ -164,6 +164,8 @@ else:
         current_water = float(today_log['water'].iloc[0]) if not today_log.empty else 1.5
         current_sleep = float(today_log['sleep'].iloc[0]) if not today_log.empty else 7.0
 
+        # NOTE: Using st.columns(4) breaks alignment on small screens, but the st.columns function handles 
+        # wrapping gracefully for inputs on modern Streamlit deployments. We will keep it for PC layout quality.
         cols = st.columns(4)
         steps = cols[0].number_input('Steps', min_value=0, value=current_steps, step=100)
         calories = cols[1].number_input('Calories burned', min_value=0, value=current_calories, step=10)
@@ -183,6 +185,8 @@ else:
             st.info("👋 Welcome! Log your first activity above to see your charts, streaks, and personalized AI predictions.")
         else:
             # Charts and Recommendations
+            
+            # NOTE: These columns are inside the dashboard tab and will stack on mobile, which is good practice.
             chart_col1, chart_col2 = st.columns(2)
             
             with chart_col1:
@@ -255,8 +259,8 @@ else:
 
         # 1. CHAT HISTORY CONTAINER (Scrolls within the tab area)
         # Using a fixed height (e.g., 600px) forces a scrollbar for the history, 
-        # ensuring the entire browser page doesn't scroll down.
-        # Height is increased slightly to feel more like a full window.
+        # which is the ONLY way to prevent the entire browser page from scrolling 
+        # when new messages are added. This is necessary for the fixed-input feel.
         with st.container(height=600): 
             for message in st.session_state.chat_history:
                 with st.chat_message(message["role"]):
