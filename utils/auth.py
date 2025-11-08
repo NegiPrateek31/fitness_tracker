@@ -5,6 +5,20 @@ import pandas as pd
 
 DB = os.path.join('data','fitness_users.db')
 
+def calculate_bmr(gender, weight_kg, height_m, age_years):
+    """Calculates Basal Metabolic Rate (BMR) using the Mifflin-St Jeor equation."""
+    height_cm = height_m * 100
+    if gender.upper() == 'M':
+        # BMR = 10*weight(kg) + 6.25*height(cm) - 5*age(years) + 5
+        bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age_years + 5
+    elif gender.upper() == 'F':
+        # BMR = 10*weight(kg) + 6.25*height(cm) - 5*age(years) - 161
+        bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age_years - 161
+    else:
+        # Default to male if gender is unknown or missing
+        bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age_years + 5
+    return round(bmr, 2)
+
 def init_db():
     os.makedirs('data', exist_ok=True)
     conn = sqlite3.connect(DB)
@@ -17,7 +31,9 @@ def init_db():
                     height REAL,
                     weight REAL,
                     bmi REAL,
-                    goal TEXT
+                    goal TEXT,
+                    gender TEXT, -- ADDED GENDER
+                    bmr REAL      -- ADDED BMR
                 )''')
     c.execute('''CREATE TABLE IF NOT EXISTS activity (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,13 +51,13 @@ def ensure_sample_user():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     
-    # 1. Base Sample User (Rohan)
+    # ADDED GENDER AND LOGIC TO CALCULATE BMR FOR SAMPLE USERS
     users_to_add = {
-        'rohanpal': {'pwd': '1234', 'age': 28, 'height': 1.75, 'weight': 70, 'bmi': 23.0, 'goal': 'Stay Fit', 'step_multiplier': 500, 'base_steps': 4000},
-        'fitguru': {'pwd': '1234', 'age': 35, 'height': 1.80, 'weight': 80, 'bmi': 24.7, 'goal': 'Gain Muscle', 'step_multiplier': 800, 'base_steps': 10000},
-        'marathoner': {'pwd': '1234', 'age': 45, 'height': 1.65, 'weight': 60, 'bmi': 22.0, 'goal': 'Stay Fit', 'step_multiplier': 1200, 'base_steps': 15000},
-        'healthfan': {'pwd': '1234', 'age': 22, 'height': 1.68, 'weight': 55, 'bmi': 19.4, 'goal': 'Lose Weight', 'step_multiplier': 400, 'base_steps': 7500},
-        'sleepyhead': {'pwd': '1234', 'age': 50, 'height': 1.72, 'weight': 90, 'bmi': 30.4, 'goal': 'Lose Weight', 'step_multiplier': 100, 'base_steps': 2000},
+        'rohanpal': {'pwd': '1234', 'age': 28, 'height': 1.75, 'weight': 70, 'bmi': 23.0, 'goal': 'Stay Fit', 'gender': 'M', 'step_multiplier': 500, 'base_steps': 4000},
+        'fitguru': {'pwd': '1234', 'age': 35, 'height': 1.80, 'weight': 80, 'bmi': 24.7, 'goal': 'Gain Muscle', 'gender': 'M', 'step_multiplier': 800, 'base_steps': 10000},
+        'marathoner': {'pwd': '1234', 'age': 45, 'height': 1.65, 'weight': 60, 'bmi': 22.0, 'goal': 'Stay Fit', 'gender': 'F', 'step_multiplier': 1200, 'base_steps': 15000},
+        'healthfan': {'pwd': '1234', 'age': 22, 'height': 1.68, 'weight': 55, 'bmi': 19.4, 'goal': 'Lose Weight', 'gender': 'F', 'step_multiplier': 400, 'base_steps': 7500},
+        'sleepyhead': {'pwd': '1234', 'age': 50, 'height': 1.72, 'weight': 90, 'bmi': 30.4, 'goal': 'Lose Weight', 'gender': 'M', 'step_multiplier': 100, 'base_steps': 2000},
     }
     
     today = date.today()
@@ -52,8 +68,12 @@ def ensure_sample_user():
         
         if not row:
             hashed = generate_password_hash(data['pwd'])
-            c.execute("INSERT INTO users (username, password, age, height, weight, bmi, goal) VALUES (?,?,?,?,?,?,?)",
-                      (username, hashed, data['age'], data['height'], data['weight'], data['bmi'], data['goal']))
+            # Calculate BMR
+            bmr_val = calculate_bmr(data['gender'], data['weight'], data['height'], data['age'])
+
+            # ADDED gender and bmr to INSERT statement
+            c.execute("INSERT INTO users (username, password, age, height, weight, bmi, goal, gender, bmr) VALUES (?,?,?,?,?,?,?,?,?)",
+                      (username, hashed, data['age'], data['height'], data['weight'], data['bmi'], data['goal'], data['gender'], bmr_val))
             user_id = c.lastrowid
             
             # Log 14 days of activity for each new user
@@ -72,13 +92,16 @@ def ensure_sample_user():
     conn.commit()
     conn.close()
 
-def signup_user(username, password, age, height, weight, bmi, goal):
+# MODIFIED: Added gender, and calculate BMR
+def signup_user(username, password, age, height, weight, bmi, goal, gender):
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     try:
         hashed = generate_password_hash(password)
-        c.execute("INSERT INTO users (username, password, age, height, weight, bmi, goal) VALUES (?,?,?,?,?,?,?)",
-                  (username, hashed, age, height, weight, bmi, goal))
+        bmr = calculate_bmr(gender, weight, height, age)
+        # ADDED gender and bmr to INSERT statement
+        c.execute("INSERT INTO users (username, password, age, height, weight, bmi, goal, gender, bmr) VALUES (?,?,?,?,?,?,?,?,?)",
+                  (username, hashed, age, height, weight, bmi, goal, gender, bmr))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -99,14 +122,17 @@ def login_user(username, password):
 def get_user(username):
     conn = sqlite3.connect(DB)
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username=?", (username,))
+    # MODIFIED: Included 'gender' and 'bmr'
+    c.execute("SELECT id, username, password, age, height, weight, bmi, goal, gender, bmr FROM users WHERE username=?", (username,))
     row = c.fetchone()
     conn.close()
     if not row:
         return None
-    keys = ['id','username','password','age','height','weight','bmi','goal']
-    return dict(zip(keys, row))
+    # MODIFIED: Added 'gender' and 'bmr' keys
+    keys = ['id','username','password','age','height','weight','bmi','goal', 'gender', 'bmr']
+    return dict(zip(keys[:len(row)], row)) 
 
+# MODIFIED: Added logic to UPDATE existing entry if date matches today.
 def add_activity(username, steps, calories, water, sleep):
     conn = sqlite3.connect(DB)
     c = conn.cursor()
@@ -117,26 +143,35 @@ def add_activity(username, steps, calories, water, sleep):
         return
     user_id = row[0]
     today = date.today().isoformat()
-    c.execute("INSERT INTO activity (user_id, date, steps, calories, water, sleep) VALUES (?,?,?,?,?,?)",
-              (user_id, today, int(steps), int(calories), float(water), float(sleep)))
+    # Check if entry for today already exists (PREVENTION OF DUPLICATES)
+    c.execute("SELECT id FROM activity WHERE user_id=? AND date=?", (user_id, today))
+    if c.fetchone():
+        # Update existing entry instead of inserting a new one
+        c.execute("UPDATE activity SET steps=?, calories=?, water=?, sleep=? WHERE user_id=? AND date=?",
+                  (int(steps), int(calories), float(water), float(sleep), user_id, today))
+    else:
+        # Insert new entry
+        c.execute("INSERT INTO activity (user_id, date, steps, calories, water, sleep) VALUES (?,?,?,?,?,?)",
+                (user_id, today, int(calories), float(water), float(sleep)))
+        
     conn.commit()
     conn.close()
 
 def get_activity_df(username):
+    # This remains the clean function used for plotting/analysis (without activity_id)
     conn = sqlite3.connect(DB)
     c = conn.cursor()
     c.execute("SELECT id FROM users WHERE username=?", (username,))
     row = c.fetchone()
     
-    # Initialize df to an empty DataFrame, the fallback result
     df = pd.DataFrame() 
     
     if row:
-        # User found, now we can safely assign user_id and execute the query
         user_id = row[0] 
+        # MODIFIED: Ensuring the right columns are selected for analysis
         df = pd.read_sql_query("SELECT date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date", conn, params=(user_id,))
     
-    conn.close() # Always close connection
+    conn.close()
     
     if df.empty:
         return df
@@ -144,17 +179,45 @@ def get_activity_df(username):
     df['date'] = pd.to_datetime(df['date'])
     return df
 
+# ADDED FUNCTION: To fetch raw data including activity ID for modification
+def get_raw_activity_df(username):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE username=?", (username,))
+    row = c.fetchone()
+    
+    df = pd.DataFrame() 
+    
+    if row:
+        user_id = row[0] 
+        # Selecting the activity ID for deletion/editing purposes
+        df = pd.read_sql_query("SELECT id, date, steps, calories, water, sleep FROM activity WHERE user_id=? ORDER BY date DESC", conn, params=(user_id,))
+    
+    conn.close()
+    
+    if df.empty:
+        return df
+    
+    df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d') # Format date nicely
+    # Rename id to activity_id for clarity
+    df = df.rename(columns={'id': 'activity_id'})
+    return df
+
+# ADDED FUNCTION: To delete an activity log
+def delete_activity(activity_id):
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM activity WHERE id=?", (activity_id,))
+    conn.commit()
+    conn.close()
+
 def get_leaderboard():
     conn = sqlite3.connect(DB)
-    # FIX: Select only username, total_steps, and days. The old query included the user's hidden 'id', which appeared as the first column in the Streamlit table.
     df = pd.read_sql_query("SELECT u.username, SUM(a.steps) as total_steps, COUNT(a.id) as days FROM activity a JOIN users u ON a.user_id=u.id GROUP BY u.username ORDER BY total_steps DESC LIMIT 10", conn)
     conn.close()
-    # Streamlit's st.table auto-generates an index column (starting from 0). 
-    # To prevent confusion, let's explicitly rename the index for a cleaner look:
     df.index.name = 'Rank'
     df = df.reset_index(drop=False)
     df['Rank'] = df.index + 1
-    # Drop the internal index column that Streamlit usually adds
     df = df.set_index('Rank')
     return df
 
