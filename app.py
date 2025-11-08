@@ -53,6 +53,7 @@ with st.sidebar:
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
                     st.success('Account created. Logging in...')
+                    # --- FIX: AUTO-LOGIN AFTER SIGNUP ---
                     st.session_state['auth'] = {'logged_in': True, 'user': su_user}
                     st.rerun() 
                 else:
@@ -227,7 +228,9 @@ else:
             else:
                 st.markdown("Use this section to view or permanently delete past entries.")
                 
-                df_display = df_log[['date', 'steps', 'calories', 'water', 'sleep']].head(30)
+                # --- FIX: DISPLAYING 1-BASED INDEX ---
+                # We use the 'No.' column as the index for display
+                df_display = df_log[['No.', 'date', 'steps', 'calories', 'water', 'sleep']].set_index('No.').head(30)
                 st.dataframe(df_display, use_container_width=True)
                 
                 # Deletion logic
