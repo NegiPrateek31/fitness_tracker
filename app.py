@@ -89,9 +89,15 @@ else:
     user = st.session_state['auth']['user']
     user_info = get_user(user)
 
-    # Use columns to keep the dashboard wide and put the simulated chat next to it
-    dashboard_col, chat_col = st.columns([3, 1] if st.session_state['show_chat'] else [1, 0])
-    
+    # --- FIX: CORRECT COLUMN SPECIFICATION ---
+    if st.session_state['show_chat']:
+        # Chat visible: Dashboard is 3/4 width, Chat is 1/4 width
+        dashboard_col, chat_col = st.columns([3, 1]) 
+    else:
+        # Chat hidden: Create only one column for the dashboard (full width)
+        dashboard_col, = st.columns([1])
+        chat_col = None # Set chat_col to None to avoid errors in the chat logic block
+
     # --- Dashboard Content (Main Column) ---
     with dashboard_col:
         
@@ -136,7 +142,7 @@ else:
             st.plotly_chart(fig2, use_container_width=True)
             
         fig3 = plot_calendar_heatmap(df)
-        st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True)
 
 
         st.subheader('AI Recommendations and Predictions')
@@ -173,10 +179,24 @@ else:
             df_display = df_log[['date', 'steps', 'calories', 'water', 'sleep']].head(30)
             st.dataframe(df_display, use_container_width=True)
             
-            # Deletion logic...
+            # Deletion logic
+            activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
+            
+            dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
+            date_to_delete = st.selectbox("Select a date to delete log:", dates_to_delete, key='del_date')
+            
+            if date_to_delete != '- Select Date to Delete -':
+                id_to_delete = activity_id_map[date_to_delete]
+                
+                if st.button(f'❌ Delete Log for {date_to_delete}'):
+                    delete_activity(id_to_delete)
+                    st.success(f"Log for {date_to_delete} permanently deleted.")
+                    st.rerun()
+
 
     # --- Chat Panel (Simulated Mini-Window) ---
-    if st.session_state['show_chat']:
+    # Only render the chat logic if st.session_state['show_chat'] is True
+    if st.session_state['show_chat'] and chat_col is not None:
         with chat_col:
             # Use a container to box the chat for a 'mini-window' look
             chat_container = st.container(border=True, height=700)
@@ -188,28 +208,25 @@ else:
                 init_chat_history()
                 
                 # Create a placeholder for the chat history display
-                chat_history_placeholder = st.empty()
+                # Note: This is an important structural choice for Streamlit chat
+                chat_history_placeholder = st.empty() 
                 
                 # 1. DISPLAY CHAT HISTORY
-                # Use st.container with a fixed height to make history scrollable
                 with chat_history_placeholder.container(height=550): 
                     for message in st.session_state.chat_history:
                         with st.chat_message(message["role"]):
                             st.markdown(message["content"])
 
-                # 2. CHAT INPUT (Fixed at the bottom of the container)
-                # This input needs to be placed outside the chat history placeholder.
-                # NOTE: The chat_input needs to be in the final position to stay at the bottom.
-                if chat_prompt := st.chat_input("Ask a question..."):
-                    # Add user message to history and display it
+                # 2. CHAT INPUT (Fixed at the bottom)
+                if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
+                    # Add user message to history
                     st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
                     
                     # --- CRITICAL: PASSING user_info TO CHATBOT ---
                     reply = chat_with_ai(chat_prompt, user_info)
 
-                    # Add assistant response to history and display it
+                    # Add assistant response to history
                     if not reply.startswith("⚠️"):
-                        # If successful, add the bot's reply to the history
                         st.session_state.chat_history.append({"role": "assistant", "content": reply})
                     
                     # Rerun to update the history display
