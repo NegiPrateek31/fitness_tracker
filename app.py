@@ -253,16 +253,18 @@ else:
 
         init_chat_history()
 
-        # 1. CHAT HISTORY CONTAINER (Scrolls)
-        # We re-introduce the fixed height for the history, so ONLY the history scrolls.
-        with st.container(height=500): 
+        # 1. CHAT HISTORY CONTAINER (Scrolls within the tab area)
+        # Using a fixed height (e.g., 600px) forces a scrollbar for the history, 
+        # ensuring the entire browser page doesn't scroll down.
+        # Height is increased slightly to feel more like a full window.
+        with st.container(height=600): 
             for message in st.session_state.chat_history:
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
 
-        # 2. CHAT INPUT (Fixed at the bottom of the visible screen)
-        # We place the input outside of the scrolling history container, 
-        # ensuring it always remains visible at the bottom of the chat tab area.
+        # 2. CHAT INPUT (Fixed at the bottom of the tab)
+        # This input is placed *below* the fixed-height container, sticking it to the bottom
+        # of the current screen view within the tab.
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
             # Add user message to history
             st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
