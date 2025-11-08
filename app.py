@@ -2,9 +2,7 @@ import streamlit as st
 # --- New Imports for Chatbot ---
 from utils.chatbot import init_chat_history, chat_with_ai
 # --- End of New Imports ---
-# MODIFIED IMPORTS: Added get_raw_activity_df, delete_activity
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user, get_raw_activity_df, delete_activity
-# MODIFIED IMPORTS: Replaced plot_pie with plot_correlation
 from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories
 from utils.charts import plot_progress, plot_correlation, plot_calendar_heatmap 
 import pandas as pd
@@ -27,6 +25,8 @@ with st.sidebar:
     
     # Login/Logout section
     if not st.session_state['auth']['logged_in']:
+        # If not logged in, this sidebar section serves as the login/signup form
+        st.header('Access Portal')
         tab = st.selectbox('Choose', ['Login','Sign up'])
         if tab == 'Login':
             user = st.text_input('Username')
@@ -53,12 +53,12 @@ with st.sidebar:
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
                     st.success('Account created. Logging in...')
-                    # --- FIX: AUTO-LOGIN AFTER SIGNUP ---
                     st.session_state['auth'] = {'logged_in': True, 'user': su_user}
                     st.rerun() 
                 else:
                     st.error('Username exists.')
     else:
+        # If logged in, show user info and logout button
         st.write('Logged in as:', st.session_state['auth']['user'])
         if st.button('Logout'):
             st.session_state['auth'] = {'logged_in': False, 'user': None}
@@ -66,17 +66,56 @@ with st.sidebar:
 
     st.markdown('---')
     
-# --- Main Content: Dashboard and Chat Tabs ---
-st.title('AI Fitness Tracker Dashboard')
+# --- Main Content Logic ---
 
 if not st.session_state['auth']['logged_in']:
-    st.info('Please login or sign up to see personalized dashboard. Demo user: rohanpal / 1234')
-    df_demo = get_activity_df('rohanpal')
-    if not df_demo.empty:
-        fig = plot_progress(df_demo)
-        st.plotly_chart(fig, use_container_width=True)
+    # --- PROJECT OVERVIEW LANDING PAGE ---
+    st.markdown("# FITNESS TRACKER")
+    st.markdown("### By Prateek Negi and Vansh Nagpal")
+    
+    st.markdown("---")
+    
+    st.header("Project Overview: Your Intelligent Health Companion")
+    st.markdown(
+        """
+        The **Fitness Tracker** is a comprehensive, data-driven application designed to help users monitor their daily health metrics and receive personalized, AI-powered guidance. 
+        It integrates a secure database, advanced visualizations, and machine learning models to provide a holistic view of fitness progress.
+        
+        Log in using the form in the sidebar to access your dashboard.
+        (Demo User: **rohanpal** / **1234**)
+        """
+    )
+
+    st.subheader("Technology Stack")
+    st.markdown(
+        """
+        | Component | Technology Used | Function |
+        | :--- | :--- | :--- |
+        | **Frontend/Deployment** | Streamlit | Provides the interactive web application interface. |
+        | **Database** | SQLite & Pandas | Securely stores user profiles and activity logs. |
+        | **Data Visualization** | Plotly | Generates interactive charts (progress, correlation, heatmaps). |
+        | **ML Recommendations** | **K-Nearest Neighbors (KNN)** | Recommends personalized exercises based on user profile (BMI, Age, Goal). |
+        | **ML Prediction** | **Random Forest Regressor** | Predicts calorie expenditure and step goals based on a user's logged activity trends. |
+        | **AI Chatbot** | **Groq API** (`llama-3.1-8b-instant`) | Provides instant, conversational, and personalized fitness advice using your profile data. |
+        """
+    )
+    
+    st.markdown("---")
+    
+    st.subheader("Key Features")
+    st.markdown(
+        """
+        * **Personalized Profile:** Tracks BMI, estimates BMR, and tracks fitness goals.
+        * **Activity Logging:** Records daily steps, calories burned, water intake, and sleep.
+        * **Streak Tracking:** Motivates continuous engagement by counting consecutive days of logging.
+        * **Leaderboard:** Encourages friendly competition among users.
+        """
+    )
+    
 else:
-    # Get user info and create tabs
+    # --- DASHBOARD AND CHAT TABS (LOGGED IN VIEW) ---
+    
+    # Get user info once here and pass it to the chat function
     user = st.session_state['auth']['user']
     user_info = get_user(user)
 
@@ -114,7 +153,7 @@ else:
         st.markdown('---')
         df = get_activity_df(user)
         
-        # --- FIX: CONDITIONAL RENDERING FOR NO DATA ---
+        # --- CONDITIONAL RENDERING ---
         if df.empty:
             st.info("👋 Welcome! Log your first activity above to see your charts, streaks, and personalized AI predictions.")
         else:
@@ -170,7 +209,6 @@ else:
                 activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
                 
                 dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
-                # st.selectbox requires a unique key, which is provided here
                 date_to_delete = st.selectbox("Select a date to delete log:", dates_to_delete, key='del_date')
                 
                 if date_to_delete != '- Select Date to Delete -':
