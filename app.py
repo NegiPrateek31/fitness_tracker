@@ -134,7 +134,7 @@ if not st.session_state['auth']['logged_in']:
 
     st.subheader("🔑 Access the Dashboard")
     st.info("Log in or sign up using the **Access Portal** in the sidebar.")
-    st.code("Demo User: rohanpal / 1234")
+    st.code("Demo User: usertest / 1234")
 
     
 else:
@@ -253,18 +253,23 @@ else:
 
         init_chat_history()
 
-        # Shorter outer container height
-        chat_container = st.container(height=550)
+        # --- FIX: REMOVED OUTER HEIGHT CONSTRAINT (Allows full screen height) ---
+        chat_container = st.container()
         
         # 1. DISPLAY CHAT HISTORY
+        # Use a container with NO fixed height. Streamlit will default to filling the available page space, 
+        # and the chat input at the very bottom will ensure the chat history scrolls cleanly without a double scrollbar.
         with chat_container: 
-            # Shorter history container height
-            with st.container(height=450): 
-                for message in st.session_state.chat_history:
-                    with st.chat_message(message["role"]):
-                        st.markdown(message["content"])
+            
+            # The chat history scrolls itself automatically when contained within a tab, but we still use the
+            # container for layout control.
+            
+            for message in st.session_state.chat_history:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
 
-        # 2. CHAT INPUT (Fixed at the bottom of the tab)
+        # 2. CHAT INPUT (Fixed at the very bottom of the entire page)
+        # st.chat_input, when called at the end of the script/tab block, always sticks to the bottom of the main view.
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
             # Add user message to history
             st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
