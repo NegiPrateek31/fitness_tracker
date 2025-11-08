@@ -180,14 +180,16 @@ else:
 
         init_chat_history()
 
-        # Create a container to ensure the chat history scrolls and the input stays at the bottom
-        chat_container = st.container(height=650)
+        # --- FIX: SHORTER CONTAINER HEIGHT ---
+        chat_container = st.container(height=550)
         
         # 1. DISPLAY CHAT HISTORY
+        # Shorter history container
         with chat_container: 
-            for message in st.session_state.chat_history:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+            with st.container(height=450):
+                for message in st.session_state.chat_history:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["content"])
 
         # 2. CHAT INPUT (Placed directly below the container to stay at the bottom of the tab)
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
