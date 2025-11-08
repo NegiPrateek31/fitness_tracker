@@ -8,14 +8,18 @@ DB = os.path.join('data','fitness_users.db')
 def calculate_bmr(gender, weight_kg, height_m, age_years):
     """Calculates Basal Metabolic Rate (BMR) using the Mifflin-St Jeor equation."""
     height_cm = height_m * 100
-    if gender.upper() == 'M':
+    
+    # --- FIX: Handle NoneType for gender ---
+    gender_safe = str(gender).upper()
+    
+    if gender_safe == 'M':
         # BMR = 10*weight(kg) + 6.25*height(cm) - 5*age(years) + 5
         bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age_years + 5
-    elif gender.upper() == 'F':
+    elif gender_safe == 'F':
         # BMR = 10*weight(kg) + 6.25*height(cm) - 5*age(years) - 161
         bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age_years - 161
     else:
-        # Default to male if gender is unknown or missing
+        # Default to male BMR if gender is null or invalid
         bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age_years + 5
     return round(bmr, 2)
 
