@@ -9,11 +9,10 @@ import os
 # --------------------------- #
 def init_chat_history():
     if "chat_history" not in st.session_state:
-        # Chat history stores dictionaries with 'role' and 'content' keys
         st.session_state["chat_history"] = []
 
 # --------------------------- #
-# Chat function with direct HTTP POST request (using Llama 2 Chat model)
+# Chat function with direct HTTP POST request
 # --------------------------- #
 def chat_with_ai(user_input: str) -> str:
     """Sends user input via direct HTTP request to the Hugging Face Inference API."""
@@ -25,9 +24,10 @@ def chat_with_ai(user_input: str) -> str:
     if not HF_TOKEN:
         return "⚠️ HF_TOKEN not found. Please set your Hugging Face API Token in Streamlit secrets."
 
-    # --- FINAL FIX: SWITCHING TO STABLE Llama 2 MODEL ---
-    # Llama 2 is highly stable and widely supported on the free router.
-    MODEL_ID = "NousResearch/Llama-2-7b-chat-hf"
+    # --- NEW STABLE MODEL ID ---
+    # Using a model ID and endpoint known for better stability on the free tier.
+    # The ":hf-inference" suffix often forces routing to a more reliable server.
+    MODEL_ID = "openai/gpt-oss-safeguard-20b:hf-inference" 
     API_URL = f"https://router.huggingface.co/models/{MODEL_ID}"
     
     headers = {
@@ -41,23 +41,16 @@ def chat_with_ai(user_input: str) -> str:
         "about exercise, nutrition and wellness."
     )
 
-    # 2. CONSTRUCT THE FULL PROMPT STRING (Llama 2 Chat Format)
+    # 2. CONSTRUCT THE FULL PROMPT STRING (Simple turn-based instruct format)
+    full_prompt = f"System: {system_prompt}\n\n"
     
-    # 2a. Start with the System Prompt using the Llama 2 System tags
-    full_prompt = f"<s>[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n" 
-    
-    # 2b. Add conversation history
+    # Add conversation history
     for msg in st.session_state.chat_history:
-        if msg["role"] == "user":
-            # User message ends the instruction block
-            full_prompt += f"{msg['content']} [/INST]"
-        elif msg["role"] == "assistant":
-            # Assistant response followed by closing tag and start of new instruction block
-            full_prompt += f" {msg['content']} </s><s>[INST] "
+        role = "User" if msg["role"] == "user" else "Assistant"
+        full_prompt += f"{role}: {msg['content']}\n"
 
-    # 2c. Add the current user input and prime the model for its response
-    full_prompt += f"{user_input} [/INST]"
-
+    # Append the current user input and prime the model for its response
+    full_prompt += f"User: {user_input}\nAssistant: "
 
     # 3. Construct the request payload
     payload = {
@@ -68,7 +61,7 @@ def chat_with_ai(user_input: str) -> str:
             "temperature": 0.7,
             "return_full_text": False, 
             # Stop sequence helps the model stop cleanly after its turn
-            "stop_sequences": ["</s>", "[INST]"]
+            "stop_sequences": ["User:", "\n\n"]
         }
     }
 
@@ -83,10 +76,6 @@ def chat_with_ai(user_input: str) -> str:
         if isinstance(result, list) and len(result) > 0 and 'generated_text' in result[0]:
             reply = result[0]['generated_text'].strip()
             
-            # Clean up potential tokens
-            if reply.startswith("<s>"):
-                reply = reply[3:].strip()
-            
             return reply
         
         # Handle model loading or other API errors
@@ -100,7 +89,7 @@ def chat_with_ai(user_input: str) -> str:
     except requests.exceptions.RequestException as e:
         error_str = str(e).lower()
         if "404 client error" in error_str:
-             return "⚠️ Network Error: 404. The model endpoint is unavailable. The free router is highly volatile. You may need to try swapping the MODEL_ID again."
+             return "⚠️ Network Error: 404. The model endpoint is unavailable. The free router is highly volatile. Please try a different model ID again."
         elif "timeout" in error_str:
             return "⚠️ Request Timed Out. The Hugging Face free server is currently too busy. Please try again later."
         elif "429" in error_str:
