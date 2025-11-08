@@ -1,4 +1,3 @@
-# utils/chatbot.py
 import streamlit as st
 import requests 
 import json
@@ -24,10 +23,10 @@ def chat_with_ai(user_input: str) -> str:
     if not HF_TOKEN:
         return "⚠️ HF_TOKEN not found. Please set your Hugging Face API Token in Streamlit secrets."
 
-    # --- CRITICAL FIX: CHANGING MODEL URL ---
-    # The previous Mistral model is giving a 410 Gone error. 
-    # Switching to a reliable, free, small-scale alternative (Gemma 2B).
-    API_URL = "https://api-inference.huggingface.co/models/google/gemma-2b-it" 
+    # --- CRITICAL FIX: UPDATING THE API DOMAIN AS PER THE ERROR MESSAGE ---
+    # The old domain (api-inference.huggingface.co) is gone (410).
+    # New recommended domain from the error message is router.huggingface.co/hf-inference
+    API_URL = "https://router.huggingface.co/hf-inference/models/google/gemma-2b-it" 
     
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
@@ -41,8 +40,6 @@ def chat_with_ai(user_input: str) -> str:
     )
 
     # 2. CONSTRUCT THE FULL PROMPT STRING (Gemma Instruct Format)
-    # This format is a simple turn-by-turn structure (not as complex as Mistral's)
-    
     full_prompt = f"{system_prompt}\n\n"
     
     # Add conversation history
@@ -76,13 +73,11 @@ def chat_with_ai(user_input: str) -> str:
         if isinstance(result, list) and len(result) > 0 and 'generated_text' in result[0]:
             reply = result[0]['generated_text'].strip()
             
-            # Clean up the final turn-stop sequence if it wasn't caught by the API
             if reply.endswith("<|end_of_turn|>"):
                 reply = reply[:-len("<|end_of_turn|>")]
             
             return reply
         
-        # Handle case where model is loading (common in free tier)
         elif isinstance(result, dict) and 'error' in result and 'is currently loading' in result['error']:
             return f"⚠️ Model is loading. Please wait a moment (est. {result.get('estimated_time', 20):.0f}s) and try again."
         
