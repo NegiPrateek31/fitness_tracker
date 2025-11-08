@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 # --- Exercise Recommendation Models (using Synthetic Data) ---
 
-def build_synthetic_data(n=5000):
+def build_synthetic_data(n=5000): # INCREASED SIZE FOR ROBUSTNESS
     """Generates synthetic data for exercise recommendation training."""
     rng = np.random.RandomState(42)
     bmi = rng.uniform(18, 35, n)
@@ -22,7 +22,7 @@ def build_synthetic_data(n=5000):
 
 def fit_recommender():
     """Trains the base KNN and KMeans models."""
-    df = build_synthetic_data(5000)
+    df = build_synthetic_data(5000) # INCREASED SIZE FOR ROBUSTNESS
     X = df[['bmi','age','goal']]
     y = df['exercise']
     # NOTE: Set n_neighbors to a value > 1 (e.g., 5) to use the kneighbors method later
