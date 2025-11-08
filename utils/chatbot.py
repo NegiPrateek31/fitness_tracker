@@ -1,8 +1,7 @@
 # utils/chatbot.py
 import streamlit as st
 import os
-from groq import Groq # Correct top-level import
-# REMOVED: from groq.lib.chat_completion import ChatCompletion # INCORRECT/DEPRECATED PATH
+from groq import Groq 
 
 # --------------------------- #
 # Initialize chat history
@@ -29,8 +28,8 @@ def chat_with_ai(user_input: str) -> str:
     # Initialize the Groq client
     client = Groq(api_key=GROQ_API_KEY)
 
-    # Use a high-speed, stable model
-    MODEL_ID = "llama3-8b-8192" 
+    # --- CRITICAL FIX: USING THE NEW, SUPPORTED MODEL ID ---
+    MODEL_ID = "llama-3.1-8b-swift" 
 
     system_prompt = (
         "You are FitBot, an expert AI fitness coach. "
@@ -52,7 +51,6 @@ def chat_with_ai(user_input: str) -> str:
 
     try:
         # 3. Call the Groq Chat Completion API
-        # Removed type hint reference to the deprecated ChatCompletion class
         response = client.chat.completions.create(
             model=MODEL_ID,
             messages=messages,
@@ -70,5 +68,8 @@ def chat_with_ai(user_input: str) -> str:
             return "⚠️ Groq Auth Error: Your GROQ_API_KEY is invalid. Please check your key."
         elif "RateLimitError" in error_str:
             return "⚠️ Groq Rate Limit Exceeded. You have hit the free tier limit. Please wait a minute."
+        # Catch the decommissioned error, though it shouldn't happen with the new ID
+        elif "model_decommissioned" in error_str:
+             return "⚠️ Groq Model Error: The model ID is decommissioned. A new one is required."
         else:
             return f"⚠️ Groq API Error: {e}"
