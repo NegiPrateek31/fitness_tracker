@@ -50,12 +50,8 @@ def init_db():
     
     # Check if 'bmr' column exists
     if 'bmr' not in columns:
-        # Need to re-run PRAGMA or just assume we need to check both if one was missing
-        # For simplicity and robustness, we can just execute the ALTER TABLE with IF NOT EXISTS logic
-        # However, SQLite does not support IF NOT EXISTS for ADD COLUMN.
-        # Since we only alter once, the previous check is needed:
-        if 'bmr' not in columns:
-            c.execute("ALTER TABLE users ADD COLUMN bmr REAL")
+        # We only need the check once, ensuring the BMR column is added if missing
+        c.execute("ALTER TABLE users ADD COLUMN bmr REAL")
     
     # 2. Ensure 'activity' table exists
     c.execute('''CREATE TABLE IF NOT EXISTS activity (
@@ -207,6 +203,11 @@ def get_raw_activity_df(username):
     
     df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d') 
     df = df.rename(columns={'id': 'activity_id'})
+    
+    # --- FIX: ADD A 1-BASED ROW NUMBER COLUMN ---
+    # Calculate the row numbers (1, 2, 3...)
+    df.insert(0, 'No.', range(1, 1 + len(df)))
+    
     return df
 
 def delete_activity(activity_id):
