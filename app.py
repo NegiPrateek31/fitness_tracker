@@ -2,9 +2,7 @@ import streamlit as st
 # --- New Imports for Chatbot ---
 from utils.chatbot import init_chat_history, chat_with_ai
 # --- End of New Imports ---
-# MODIFIED IMPORTS: Added get_raw_activity_df, delete_activity
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user, get_raw_activity_df, delete_activity
-# MODIFIED IMPORTS: Replaced plot_pie with plot_correlation
 from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories
 from utils.charts import plot_progress, plot_correlation, plot_calendar_heatmap 
 import pandas as pd
@@ -55,7 +53,6 @@ with st.sidebar:
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
                     st.success('Account created. Logging in...')
-                    # --- FIX: AUTO-LOGIN AFTER SIGNUP ---
                     st.session_state['auth'] = {'logged_in': True, 'user': su_user}
                     st.rerun() 
                 else:
