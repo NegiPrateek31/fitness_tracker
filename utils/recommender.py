@@ -8,20 +8,20 @@ from sklearn.model_selection import train_test_split
 
 # --- Exercise Recommendation Models (using Synthetic Data) ---
 
-def build_synthetic_data(n=300):
+def build_synthetic_data(n=5000): # INCREASED SIZE FOR ROBUSTNESS
     """Generates synthetic data for exercise recommendation training."""
     rng = np.random.RandomState(42)
     bmi = rng.uniform(18, 35, n)
     age = rng.randint(18, 60, n)
     goal = rng.choice([0,1,2], n)
-    exercises = ['Walking','Jogging','Push-ups','Plank','Cycling','Squats','Yoga']
+    exercises = ['Walking','Jogging','Push-ups','Plank','Cycling','Squats','Yoga','Weight Lifting', 'Running', 'Swimming', 'Hiking'] # Added more variety
     labels = rng.choice(exercises, n)
     df = pd.DataFrame({'bmi':bmi,'age':age,'goal':goal,'exercise':labels})
     return df
 
 def fit_recommender():
     """Trains the base KNN and KMeans models."""
-    df = build_synthetic_data(300)
+    df = build_synthetic_data(5000) # INCREASED SIZE FOR ROBUSTNESS
     X = df[['bmi','age','goal']]
     y = df['exercise']
     knn = KNeighborsClassifier(n_neighbors=5)
