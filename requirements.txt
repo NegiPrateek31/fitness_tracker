@@ -6,4 +6,3 @@ scikit-learn
 werkzeug
 openai
 plotly
-google-generativeai>=0.7.0
