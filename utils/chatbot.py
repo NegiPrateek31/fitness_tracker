@@ -1,6 +1,6 @@
 # utils/chatbot.py
 import streamlit as st
-# Make sure this is installed: pip install huggingface-hub
+# Ensure this is installed: pip install huggingface-hub
 from huggingface_hub import InferenceClient
 
 # --------------------------- #
@@ -8,6 +8,7 @@ from huggingface_hub import InferenceClient
 # --------------------------- #
 def init_chat_history():
     if "chat_history" not in st.session_state:
+        # Chat history stores dictionaries with 'role' and 'content' keys
         st.session_state["chat_history"] = []
 
 # --------------------------- #
@@ -43,20 +44,32 @@ def chat_with_ai(user_input: str) -> str:
         "about exercise, nutrition, and wellness."
     )
     
-    # 1. CONSTRUCT THE FULL PROMPT STRING (Mistral Instruct Format)
-    # This replaces the failed attempt to use client.conversational parameters
+    # 1. CONSTRUCT THE FULL PROMPT STRING using the Mistral Instruct Format
+    # This is the reliable method to send chat history via the text-generation endpoint.
     
-    # Start the prompt with the system instruction
+    # Start the prompt with the system instruction inside the first instruction block
     full_prompt = f"<s>[INST] {system_prompt} "
     
-    # Add conversation history
+    # Add previous conversation history
     for msg in st.session_state.chat_history:
-        role = "User" if msg["role"] == "user" else "Assistant"
-        full_prompt += f"{role}: {msg['content']}\n\n"
-        
+        # Note: We assume st.session_state.chat_history stores dictionaries with 'role' and 'content'
+        if msg["role"] == "user":
+            # Close the previous turn and start the new user turn
+            full_prompt += f"[/INST]\n\nUser: {msg['content']} [INST] "
+        elif msg["role"] == "assistant":
+             # This assumes the assistant's content follows the previous instruction block
+             # We just append the content, letting the final [/INST] handle the formatting
+             full_prompt += f"{msg['content']}"
+
     # Add the current user input and prepare the model for generation
     # The final " [/INST]" signals the start of the model's response
-    full_prompt += f"User: {user_input} [/INST]"
+    # We use a slightly simpler format to avoid unnecessary instruction blocks:
+    full_prompt = f"<s>[INST] {system_prompt}. Conversation History: "
+    for msg in st.session_state.chat_history:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        full_prompt += f"| {role}: {msg['content']} "
+        
+    full_prompt += f"| User: {user_input} [/INST]"
 
 
     try:
@@ -67,11 +80,15 @@ def chat_with_ai(user_input: str) -> str:
             do_sample=True,
             temperature=0.7,
             # Stop sequence helps the model stop cleanly
-            stop_sequences=["User:", "</s>"], 
+            stop_sequences=["User:", "</s>", "[INST]"], 
             details=False
         )
         
         reply = response.strip()
+        
+        # 3. Handle Chat History Update (MUST be done manually as we are using text-generation)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
         
         return reply
 
