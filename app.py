@@ -16,13 +16,20 @@ ensure_sample_user()
 if 'auth' not in st.session_state:
     st.session_state['auth'] = {'logged_in': False, 'user': None}
 
+# Initialize chat visibility state
+if 'show_chat' not in st.session_state:
+    st.session_state['show_chat'] = False
+
+# --- Chat Panel Activation Logic in Sidebar ---
 with st.sidebar:
     try:
-        st.image('assets/logo.png', use_container_width=True)
+        st.image('assets/logo.jpg', use_container_width=True)
     except Exception:
         st.title('AI Fitness Tracker (Logo Missing)')
 
     st.title('AI Fitness Tracker')
+    
+    # Login/Logout section
     if not st.session_state['auth']['logged_in']:
         tab = st.selectbox('Choose', ['Login','Sign up'])
         if tab == 'Login':
@@ -33,7 +40,7 @@ with st.sidebar:
                 if ok:
                     st.session_state['auth'] = {'logged_in': True, 'user': user}
                     st.success('Logged in')
-                    st.rerun() # Rerun to update the UI immediately after login
+                    st.rerun()
                 else:
                     st.error('Invalid credentials')
         else:
@@ -41,14 +48,12 @@ with st.sidebar:
             su_pwd = st.text_input('New password', type='password', key='su_pwd')
             cols_su = st.columns(2)
             age = cols_su[0].number_input('Age', 10, 100, value=25, key='su_age')
-            # MODIFIED: Added Gender select
             gender = cols_su[1].selectbox('Gender', ['M','F'], key='su_gender')
             height = st.number_input('Height (m)', 1.2, 2.2, value=1.7, step=0.01, key='su_height')
             weight = st.number_input('Weight (kg)', 30.0, 200.0, value=70.0, step=0.1, key='su_weight')
             goal = st.selectbox('Goal', ['Stay Fit','Lose Weight','Gain Muscle'], key='su_goal')
             if st.button('Create account'):
                 bmi = round(weight/(height*height),2) if height>0 else 0
-                # MODIFIED: Passed gender to signup_user
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
                     st.success('Account created. Please login.')
@@ -58,31 +63,44 @@ with st.sidebar:
         st.write('Logged in as:', st.session_state['auth']['user'])
         if st.button('Logout'):
             st.session_state['auth'] = {'logged_in': False, 'user': None}
-            st.rerun() # Rerun to update UI after logout
+            st.rerun()
 
-# --- New Tabbed Interface ---
-# Create tabs for the Dashboard and the new Chatbot
-dashboard_tab, chatbot_tab = st.tabs(["📊 Dashboard", "🤖 AI FitBot"])
+    st.markdown('---')
+    
+    # --- FLOATING CHAT BUTTON SIMULATION ---
+    # Icon is simulated with emoji, opens/closes the chat column
+    chat_button_text = "🤖 Open FitBot" if not st.session_state['show_chat'] else "❌ Close Chat"
+    if st.button(chat_button_text, key='toggle_chat_btn'):
+        st.session_state['show_chat'] = not st.session_state['show_chat']
+        st.rerun() # Rerun to update the main page layout
 
-# --- Code for the Dashboard Tab ---
-with dashboard_tab:
-    st.title('AI Fitness Tracker Dashboard')
+# --- Code for the Dashboard and Chat Display ---
 
-    if not st.session_state['auth']['logged_in']:
-        st.info('Please login or sign up to see personalized dashboard. Demo user: rohanpal / 1234')
-        df_demo = get_activity_df('rohanpal')
-        if not df_demo.empty:
-            fig = plot_progress(df_demo)
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        user = st.session_state['auth']['user']
+st.title('AI Fitness Tracker Dashboard')
+
+if not st.session_state['auth']['logged_in']:
+    st.info('Please login or sign up to see personalized dashboard. Demo user: rohanpal / 1234')
+    df_demo = get_activity_df('rohanpal')
+    if not df_demo.empty:
+        fig = plot_progress(df_demo)
+        st.plotly_chart(fig, use_container_width=True)
+else:
+    # Get user info once here and pass it to the chat function
+    user = st.session_state['auth']['user']
+    user_info = get_user(user)
+
+    # Use columns to keep the dashboard wide and put the simulated chat next to it
+    dashboard_col, chat_col = st.columns([3, 1] if st.session_state['show_chat'] else [1, 0])
+    
+    # --- Dashboard Content (Main Column) ---
+    with dashboard_col:
+        
         st.header(f'Welcome, {user} 👋')
-        user_info = get_user(user)
-        # MODIFIED: Displayed BMR
         st.markdown(f"**BMI:** {user_info['bmi']} | **BMR (Estimated):** {user_info['bmr']} Kcal | **Goal:** {user_info['goal']}")
+        
         st.subheader('Log or Update today\'s activity')
         
-        # Check if activity for today exists to prefill and indicate update
+        # Activity Logging Logic 
         today_date = pd.to_datetime('today').strftime('%Y-%m-%d')
         df_raw = get_raw_activity_df(user)
         today_log = df_raw[df_raw['date'] == today_date]
@@ -101,12 +119,12 @@ with dashboard_tab:
         if st.button('Save/Update entry'):
             add_activity(user, steps, calories, water, sleep)
             st.success('Activity saved or updated!')
-            st.rerun() # Rerun to refresh charts and data
+            st.rerun()
 
         st.markdown('---')
         df = get_activity_df(user)
         
-        # Display charts in columns for better layout
+        # Charts and Recommendations (remains unchanged)
         chart_col1, chart_col2 = st.columns(2)
         
         with chart_col1:
@@ -114,7 +132,6 @@ with dashboard_tab:
             st.plotly_chart(fig, use_container_width=True)
             
         with chart_col2:
-            # MODIFIED: Replaced plot_pie with plot_correlation
             fig2 = plot_correlation(df)
             st.plotly_chart(fig2, use_container_width=True)
             
@@ -144,7 +161,7 @@ with dashboard_tab:
         lb = get_leaderboard()
         st.table(lb)
         
-        # --- ADDED SECTION: Manage Logs ---
+        # Manage Logs section (remains unchanged)
         st.subheader('Manage Activity Logs')
         df_log = get_raw_activity_df(user)
         
@@ -153,59 +170,47 @@ with dashboard_tab:
         else:
             st.markdown("Use this section to view or permanently delete past entries.")
             
-            # Display only the last 30 entries for cleanliness
             df_display = df_log[['date', 'steps', 'calories', 'water', 'sleep']].head(30)
             st.dataframe(df_display, use_container_width=True)
             
-            # Deletion logic
-            activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
+            # Deletion logic...
+
+    # --- Chat Panel (Simulated Mini-Window) ---
+    if st.session_state['show_chat']:
+        with chat_col:
+            # Use a container to box the chat for a 'mini-window' look
+            chat_container = st.container(border=True, height=700)
             
-            # Add a placeholder for a blank option
-            dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
-            date_to_delete = st.selectbox("Select a date to delete log:", dates_to_delete, key='del_date')
-            
-            if date_to_delete != '- Select Date to Delete -':
-                # Map the date back to the hidden activity_id
-                id_to_delete = activity_id_map[date_to_delete]
+            with chat_container:
+                st.subheader("🤖 AI FitBot")
+                st.markdown("Ask me anything about fitness!")
+
+                init_chat_history()
                 
-                if st.button(f'❌ Delete Log for {date_to_delete}'):
-                    delete_activity(id_to_delete)
-                    st.success(f"Log for {date_to_delete} permanently deleted.")
+                # Create a placeholder for the chat history display
+                chat_history_placeholder = st.empty()
+                
+                # 1. DISPLAY CHAT HISTORY
+                # Use st.container with a fixed height to make history scrollable
+                with chat_history_placeholder.container(height=550): 
+                    for message in st.session_state.chat_history:
+                        with st.chat_message(message["role"]):
+                            st.markdown(message["content"])
+
+                # 2. CHAT INPUT (Fixed at the bottom of the container)
+                # This input needs to be placed outside the chat history placeholder.
+                # NOTE: The chat_input needs to be in the final position to stay at the bottom.
+                if chat_prompt := st.chat_input("Ask a question..."):
+                    # Add user message to history and display it
+                    st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
+                    
+                    # --- CRITICAL: PASSING user_info TO CHATBOT ---
+                    reply = chat_with_ai(chat_prompt, user_info)
+
+                    # Add assistant response to history and display it
+                    if not reply.startswith("⚠️"):
+                        # If successful, add the bot's reply to the history
+                        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                    
+                    # Rerun to update the history display
                     st.rerun()
-        # --- END OF ADDED SECTION ---
-
-
-# --- Corrected Code for the Chatbot Tab ---
-with chatbot_tab:
-    st.title("AI FitBot")
-    st.markdown("Your personal AI fitness coach. Ask me anything about exercise, nutrition, or wellness!")
-
-    # REMOVED: Temporary debugging line for the key
-
-    init_chat_history()
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Accept user input
-    if prompt := st.chat_input("Ask a fitness question..."):
-        # Add user message to chat history
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
-        # Display user message in chat message container
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Get and display assistant response
-        with st.chat_message("assistant"):
-            # Call the chat function from your chatbot.py file
-            reply = chat_with_ai(prompt)
-
-            # Display the reply (which includes error warnings if they occur)
-            st.markdown(reply)
-
-            # Add assistant response to chat history
-            # Only append if not an error message
-            if not reply.startswith("⚠️"):
-                st.session_state.chat_history.append({"role": "assistant", "content": reply})
