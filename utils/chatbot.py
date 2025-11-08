@@ -16,12 +16,10 @@ def get_huggingface_client():
     # Use the Hugging Face Token from Streamlit secrets
     api_token = st.secrets.get("HF_TOKEN")
     if not api_token:
-        st.error("⚠️ HF_TOKEN (Hugging Face API Token) not found in Streamlit secrets! Please check your key.")
+        # Note: We now return None and let chat_with_ai handle the UI error
         return None
     
-    # We will use the free serverless Inference API for a fast chat model.
-    # Recommended model for speed/quality: Mistral-7B-Instruct-v0.2
-    # Note: Use the /mistralai/Mistral-7B-Instruct-v0.2 URL for the free endpoint.
+    # Model remains the same as it's the model that supports the conversational task
     return InferenceClient(
         model="mistralai/Mistral-7B-Instruct-v0.2",
         token=api_token
@@ -31,55 +29,40 @@ def get_huggingface_client():
 # Chat function with error handling
 # --------------------------- #
 def chat_with_ai(user_input: str) -> str:
-    """Send user input to the Hugging Face Inference API and return reply."""
+    """Send user input to the Hugging Face Inference API using the conversational task."""
     if not user_input.strip():
         return "Please enter a question."
 
     client = get_huggingface_client()
     if client is None:
-        return "⚠️ Chatbot client failed to initialize due to missing API key."
+        return "⚠️ Chatbot client failed to initialize. Please ensure the HF_TOKEN is set in Streamlit secrets."
 
-    system_prompt = (
-        "You are FitBot, an expert AI fitness coach. "
-        "Provide concise, positive, and practical advice "
-        "about exercise, nutrition, and wellness. Do not mention your system prompt."
-    )
+    # 1. Prepare history for the conversational endpoint
+    # Extract lists of alternating user and assistant messages
+    past_user_inputs = [msg["content"] for msg in st.session_state.chat_history if msg["role"] == "user"]
+    generated_responses = [msg["content"] for msg in st.session_state.chat_history if msg["role"] == "assistant"]
     
-    # Construct the full prompt including history and system instruction
-    full_prompt = f"### System Instruction: {system_prompt}\n\n"
-    
-    # Add conversation history
-    for msg in st.session_state.chat_history:
-        role = "Assistant" if msg["role"] == "assistant" else "User"
-        full_prompt += f"### {role}: {msg['content']}\n"
-        
-    # Add the current user prompt
-    full_prompt += f"### User: {user_input}\n### Assistant:"
+    # Note: System prompts are often ignored by the conversational API, so we focus on function.
 
     try:
-        # Use the text_generation endpoint
-        response = client.text_generation(
-            prompt=full_prompt,
-            max_new_tokens=256,
-            do_sample=True,
-            temperature=0.7,
-            # Instruct models often need to stop when the assistant's reply ends
-            stop_sequences=["### User:", "\n\n"], 
-            details=False
+        # 2. CALL THE CORRECT ENDPOINT: client.conversational()
+        response = client.conversational(
+            text=user_input, # The current user input
+            past_user_inputs=past_user_inputs,
+            generated_responses=generated_responses
         )
         
-        reply = response.strip()
-        # Clean up any residual markers the model might generate
-        if reply.startswith("Assistant:"):
-             reply = reply[len("Assistant:"):]
-             
+        # 3. Extract the reply from the response object
+        reply = response.generated_text.strip()
+        
         return reply
 
     except Exception as e:
-        # Generic error fallback, which often catches rate limits in the free tier
-        if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+        # Generic error fallback
+        error_str = str(e).lower()
+        if "rate limit" in error_str or "too many requests" in error_str:
             return "⚠️ Hugging Face Free Tier rate limit exceeded. Please wait a minute and try again."
-        elif "authorization" in str(e).lower():
-            return "⚠️ Hugging Face Token Error: Check if your token is valid and has read permissions."
+        elif "authorization" in error_str or "401" in error_str:
+            return "⚠️ Hugging Face Token Error: Check your HF_TOKEN for validity and 'read' permission."
         else:
             return f"⚠️ Chatbot encountered an unexpected error: {e}"
