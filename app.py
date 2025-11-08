@@ -69,48 +69,77 @@ with st.sidebar:
 # --- Main Content Logic ---
 
 if not st.session_state['auth']['logged_in']:
-    # --- PROJECT OVERVIEW LANDING PAGE ---
-    st.markdown("# FITNESS TRACKER")
-    st.markdown("### By Prateek Negi and Vansh Nagpal")
+    
+    # =======================================================
+    # --- ENHANCED PROJECT OVERVIEW LANDING PAGE ---
+    # =======================================================
+    
+    st.markdown("# 🏋️ FITNESS TRACKER 📊")
+    st.markdown("### A Capstone Project by Prateek Negi and Vansh Nagpal")
     
     st.markdown("---")
     
-    st.header("Project Overview: Your Intelligent Health Companion")
-    st.markdown(
+    st.header("🎯 Project Goal: Intelligent Health Personalization")
+    st.info(
         """
-        The **Fitness Tracker** is a comprehensive, data-driven application designed to help users monitor their daily health metrics and receive personalized, AI-powered guidance. 
-        It integrates a secure database, advanced visualizations, and machine learning models to provide a holistic view of fitness progress.
-        
-        Log in using the form in the sidebar to access your dashboard.
-        (Demo User: **rohanpal** / **1234**)
+        The **AI Fitness Tracker** is a full-stack, data-driven application designed to move beyond simple data logging. 
+        It integrates secure user management, machine learning models, and a high-performance LLM (Groq) to deliver 
+        **real-time health predictions and personalized coaching.**
         """
     )
+    
+    st.subheader("🧠 Core Machine Learning & AI Features")
 
-    st.subheader("Technology Stack")
+    col_ml1, col_ml2, col_ml3 = st.columns(3)
+
+    with col_ml1:
+        st.success("1. Exercise Recommendation (Custom ML)")
+        st.markdown(
+            """
+            * **Model Used:** **K-Nearest Neighbors (KNN) Classifier**
+            * **Function:** Recommends specific workout types (e.g., Yoga, Cycling) by matching the user's **BMI, Age, and Goal** against a comprehensive synthetic training dataset.
+            """
+        )
+
+    with col_ml2:
+        st.success("2. Health Prediction (Custom ML)")
+        st.markdown(
+            """
+            * **Model Used:** **Random Forest Regressor**
+            * **Function:** Predicts the user's optimal **next-day calorie burn** and **step goal** based on their last 7 days of activity, water intake, and sleep quality.
+            """
+        )
+        
+    with col_ml3:
+        st.success("3. Conversational Coaching (API Integration)")
+        st.markdown(
+            """
+            * **API Used:** **Groq** (Model: `llama-3.1-8b-instant`)
+            * **Function:** Provides instant, personalized advice by injecting the user's **BMI, BMR, and Goal** directly into the LLM's system prompt for highly contextual answers.
+            """
+        )
+
+    st.markdown("---")
+    
+    st.subheader("⚙️ Implementation Stack")
     st.markdown(
         """
-        | Component | Technology Used | Function |
-        | :--- | :--- | :--- |
-        | **Frontend/Deployment** | Streamlit | Provides the interactive web application interface. |
-        | **Database** | SQLite & Pandas | Securely stores user profiles and activity logs. |
-        | **Data Visualization** | Plotly | Generates interactive charts (progress, correlation, heatmaps). |
-        | **ML Recommendations** | **K-Nearest Neighbors (KNN)** | Recommends personalized exercises based on user profile (BMI, Age, Goal). |
-        | **ML Prediction** | **Random Forest Regressor** | Predicts calorie expenditure and step goals based on a user's logged activity trends. |
-        | **AI Chatbot** | **Groq API** (`llama-3.1-8b-instant`) | Provides instant, conversational, and personalized fitness advice using your profile data. |
+        * **Frontend & Hosting:** Streamlit
+        * **Backend & Security:** SQLite Database with Password Hashing (Werkzeug)
+        * **Data Analysis & Viz:** Pandas, Plotly (for interactive charts)
         """
     )
     
     st.markdown("---")
-    
-    st.subheader("Key Features")
-    st.markdown(
-        """
-        * **Personalized Profile:** Tracks BMI, estimates BMR, and tracks fitness goals.
-        * **Activity Logging:** Records daily steps, calories burned, water intake, and sleep.
-        * **Streak Tracking:** Motivates continuous engagement by counting consecutive days of logging.
-        * **Leaderboard:** Encourages friendly competition among users.
-        """
-    )
+
+    st.subheader("🔑 Access the Dashboard")
+    st.info("Log in or sign up using the **Access Portal** in the sidebar.")
+    st.code("Demo User: rohanpal / 1234")
+
+
+    # =======================================================
+    # --- END ENHANCED LANDING PAGE ---
+    # =======================================================
     
 else:
     # --- DASHBOARD AND CHAT TABS (LOGGED IN VIEW) ---
