@@ -16,11 +16,7 @@ ensure_sample_user()
 if 'auth' not in st.session_state:
     st.session_state['auth'] = {'logged_in': False, 'user': None}
 
-# Initialize chat visibility state
-if 'show_chat' not in st.session_state:
-    st.session_state['show_chat'] = False
-
-# --- Chat Panel Activation Logic in Sidebar ---
+# --- Sidebar Content (Login/Logout) ---
 with st.sidebar:
     try:
         st.image('assets/logo.jpg', use_container_width=True)
@@ -67,15 +63,7 @@ with st.sidebar:
 
     st.markdown('---')
     
-    # --- FLOATING CHAT BUTTON SIMULATION ---
-    # Icon is simulated with emoji, opens/closes the chat column
-    chat_button_text = "🤖 Open FitBot" if not st.session_state['show_chat'] else "❌ Close Chat"
-    if st.button(chat_button_text, key='toggle_chat_btn'):
-        st.session_state['show_chat'] = not st.session_state['show_chat']
-        st.rerun() # Rerun to update the main page layout
-
-# --- Code for the Dashboard and Chat Display ---
-
+# --- Main Content: Dashboard and Chat Tabs ---
 st.title('AI Fitness Tracker Dashboard')
 
 if not st.session_state['auth']['logged_in']:
@@ -85,21 +73,14 @@ if not st.session_state['auth']['logged_in']:
         fig = plot_progress(df_demo)
         st.plotly_chart(fig, use_container_width=True)
 else:
-    # Get user info once here and pass it to the chat function
+    # Get user info and create tabs
     user = st.session_state['auth']['user']
     user_info = get_user(user)
 
-    # --- FIX: CORRECT COLUMN SPECIFICATION ---
-    if st.session_state['show_chat']:
-        # Chat visible: Dashboard is 3/4 width, Chat is 1/4 width
-        dashboard_col, chat_col = st.columns([3, 1]) 
-    else:
-        # Chat hidden: Create only one column for the dashboard (full width)
-        dashboard_col, = st.columns([1])
-        chat_col = None # Set chat_col to None to avoid errors in the chat logic block
+    dashboard_tab, chatbot_tab = st.tabs(["📊 Dashboard", "🤖 AI FitBot"])
 
-    # --- Dashboard Content (Main Column) ---
-    with dashboard_col:
+    # --- Dashboard Content (Tab) ---
+    with dashboard_tab:
         
         st.header(f'Welcome, {user} 👋')
         st.markdown(f"**BMI:** {user_info['bmi']} | **BMR (Estimated):** {user_info['bmr']} Kcal | **Goal:** {user_info['goal']}")
@@ -130,7 +111,7 @@ else:
         st.markdown('---')
         df = get_activity_df(user)
         
-        # Charts and Recommendations (remains unchanged)
+        # Charts and Recommendations
         chart_col1, chart_col2 = st.columns(2)
         
         with chart_col1:
@@ -142,8 +123,7 @@ else:
             st.plotly_chart(fig2, use_container_width=True)
             
         fig3 = plot_calendar_heatmap(df)
-            st.plotly_chart(fig3, use_container_width=True)
-
+        st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader('AI Recommendations and Predictions')
         
@@ -167,7 +147,7 @@ else:
         lb = get_leaderboard()
         st.table(lb)
         
-        # Manage Logs section (remains unchanged)
+        # Manage Logs section
         st.subheader('Manage Activity Logs')
         df_log = get_raw_activity_df(user)
         
@@ -193,41 +173,33 @@ else:
                     st.success(f"Log for {date_to_delete} permanently deleted.")
                     st.rerun()
 
+    # --- Chatbot Content (Tab) ---
+    with chatbot_tab:
+        st.title("🤖 AI FitBot")
+        st.markdown("Your personal AI fitness coach. Ask me anything about exercise, nutrition, or wellness!")
 
-    # --- Chat Panel (Simulated Mini-Window) ---
-    # Only render the chat logic if st.session_state['show_chat'] is True
-    if st.session_state['show_chat'] and chat_col is not None:
-        with chat_col:
-            # Use a container to box the chat for a 'mini-window' look
-            chat_container = st.container(border=True, height=700)
+        init_chat_history()
+
+        # Create a container to ensure the chat history scrolls and the input stays at the bottom
+        chat_container = st.container(height=650)
+        
+        # 1. DISPLAY CHAT HISTORY
+        with chat_container: 
+            for message in st.session_state.chat_history:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+        # 2. CHAT INPUT (Placed directly below the container to stay at the bottom of the tab)
+        if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
+            # Add user message to history
+            st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
             
-            with chat_container:
-                st.subheader("🤖 AI FitBot")
-                st.markdown("Ask me anything about fitness!")
+            # Call the Groq-powered backend with user info
+            reply = chat_with_ai(chat_prompt, user_info)
 
-                init_chat_history()
-                
-                # Create a placeholder for the chat history display
-                # Note: This is an important structural choice for Streamlit chat
-                chat_history_placeholder = st.empty() 
-                
-                # 1. DISPLAY CHAT HISTORY
-                with chat_history_placeholder.container(height=550): 
-                    for message in st.session_state.chat_history:
-                        with st.chat_message(message["role"]):
-                            st.markdown(message["content"])
-
-                # 2. CHAT INPUT (Fixed at the bottom)
-                if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
-                    # Add user message to history
-                    st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
-                    
-                    # --- CRITICAL: PASSING user_info TO CHATBOT ---
-                    reply = chat_with_ai(chat_prompt, user_info)
-
-                    # Add assistant response to history
-                    if not reply.startswith("⚠️"):
-                        st.session_state.chat_history.append({"role": "assistant", "content": reply})
-                    
-                    # Rerun to update the history display
-                    st.rerun()
+            # Add assistant response to history
+            if not reply.startswith("⚠️"):
+                st.session_state.chat_history.append({"role": "assistant", "content": reply})
+            
+            # Rerun to update the history display
+            st.rerun()
