@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 # --- Exercise Recommendation Models (using Synthetic Data) ---
 
-def build_synthetic_data(n=5000): # INCREASED SIZE FOR ROBUSTNESS
+def build_synthetic_data(n=5000):
     """Generates synthetic data for exercise recommendation training."""
     rng = np.random.RandomState(42)
     bmi = rng.uniform(18, 35, n)
@@ -22,7 +22,7 @@ def build_synthetic_data(n=5000): # INCREASED SIZE FOR ROBUSTNESS
 
 def fit_recommender():
     """Trains the base KNN and KMeans models."""
-    df = build_synthetic_data(5000) # INCREASED SIZE FOR ROBUSTNESS
+    df = build_synthetic_data(5000)
     X = df[['bmi','age','goal']]
     y = df['exercise']
     # NOTE: Set n_neighbors to a value > 1 (e.g., 5) to use the kneighbors method later
@@ -47,20 +47,88 @@ def recommend_exercises(username, model_data, user_info=None):
     knn = model_data['knn']
     
     # Use kneighbors to get the indices of the 3 nearest neighbors
-    # n_neighbors is 5, but we only need 3 results.
     distances, indices = knn.kneighbors(Xq, n_neighbors=3)
     
     # Retrieve the corresponding exercise labels using the indices
     df = model_data['df']
+    # Use .unique().tolist() to handle cases where two nearest neighbors recommend the same exercise
     recommended_exercises = df.iloc[indices[0]]['exercise'].unique().tolist()
     
     return recommended_exercises[:3]
 # -----------------------------------------------------------
 
 
-# ... (rest of the file remains unchanged)
+# --- Calorie and Step Prediction Models (using User Log Data) ---
+
 def fit_calorie_predictor(df_user):
-    # ... (code remains unchanged)
+    """
+    Trains a Random Forest Regressor to predict Calories burned 
+    based on steps, water, and sleep.
+    """
+    # Requires at least 10 data points to train a meaningful model
+    if df_user.empty or len(df_user) < 10:
+        return None 
     
+    # Features for calorie prediction
+    FEATURES = ['steps', 'water', 'sleep']
+    TARGET = 'calories'
+    
+    X = df_user[FEATURES]
+    y = df_user[TARGET]
+    
+    # Initialize and train the Random Forest Regressor model.
+    # RandomForest is robust to non-linear relationships.
+    model = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42)
+    model.fit(X, y)
+    
+    return model
+
 def predict_next_day_steps_and_calories(username, df_user):
-    # ... (code remains unchanged)
+    """
+    Predicts the next day's steps (simple average increase) and calories (using ML model).
+    """
+    # 1. Step Prediction (Simple Trend)
+    if df_user.empty:
+        predicted_steps = 5000
+    else:
+        last7 = df_user.tail(7)
+        # Predict steps as a 2% increase on the last 7 days' mean, or just the overall mean if less than 7 days
+        mean_steps = last7['steps'].mean() if not last7.empty else df_user['steps'].mean()
+        predicted_steps = int(mean_steps * 1.02)
+    
+    # 2. Calorie Prediction (ML Model)
+    calorie_model = fit_calorie_predictor(df_user)
+    
+    if calorie_model is None:
+        # Fallback: Simple correlation prediction or average
+        if not df_user.empty:
+            predicted_calories = int(df_user['calories'].mean())
+        else:
+            predicted_calories = 300
+    else:
+        # Use the average of the last few days' inputs for the prediction input
+        last_data = df_user[['steps', 'water', 'sleep']].tail(3).mean()
+        
+        # Create a new data point for tomorrow's prediction
+        # We predict using the predicted steps, and the average water/sleep
+        X_new = pd.DataFrame({
+            'steps': [predicted_steps],
+            'water': [last_data['water']],
+            'sleep': [last_data['sleep']]
+        })
+        
+        predicted_calories = int(calorie_model.predict(X_new)[0])
+        # Ensure predicted calories is not negative or wildly low
+        predicted_calories = max(predicted_calories, 100) 
+        
+    return predicted_steps, predicted_calories
+
+# We'll keep the old simple step prediction function just for backwards compatibility
+def predict_next_day_steps(username, df_user):
+    # This function is now deprecated, use the combined one in app.py
+    if df_user is None or df_user.empty:
+        return 5000
+    last7 = df_user.tail(7)
+    if last7.empty:
+        return int(df_user['steps'].mean()) if not df_user.empty else 5000
+    return int(last7['steps'].mean() * 1.02)
