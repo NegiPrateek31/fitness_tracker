@@ -6,5 +6,4 @@ scikit-learn
 werkzeug
 openai
 plotly
-huggingface_hub
-requests
+groq
