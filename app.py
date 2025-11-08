@@ -53,7 +53,6 @@ with st.sidebar:
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
                     st.success('Account created. Logging in...')
-                    # --- FIX: AUTO-LOGIN AFTER SIGNUP ---
                     st.session_state['auth'] = {'logged_in': True, 'user': su_user}
                     st.rerun() 
                 else:
@@ -115,7 +114,7 @@ if not st.session_state['auth']['logged_in']:
         st.success("3. Conversational Coaching (API Integration)")
         st.markdown(
             """
-            * **API Used:** **Groq API** (Model: `llama-3.1-8b-instant`)
+            * **API Used:** **Groq** (Model: `llama-3.1-8b-instant`)
             * **Function:** Provides instant, personalized advice by injecting the user's **BMI, BMR, and Goal** directly into the LLM's system prompt for highly contextual answers.
             """
         )
@@ -228,15 +227,15 @@ else:
             else:
                 st.markdown("Use this section to view or permanently delete past entries.")
                 
+                activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
+                
+                dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
+                
                 # --- FIX: DISPLAYING 1-BASED INDEX ---
                 # We use the 'No.' column as the index for display
                 df_display = df_log[['No.', 'date', 'steps', 'calories', 'water', 'sleep']].set_index('No.').head(30)
                 st.dataframe(df_display, use_container_width=True)
                 
-                # Deletion logic
-                activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
-                
-                dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
                 date_to_delete = st.selectbox("Select a date to delete log:", dates_to_delete, key='del_date')
                 
                 if date_to_delete != '- Select Date to Delete -':
