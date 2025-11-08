@@ -39,18 +39,13 @@ def init_db():
                 )''')
                 
     # --- SCHEMA MIGRATION: ADD MISSING COLUMNS ---
-    # This section ensures backward compatibility and fixes your error.
-    
-    # Check if 'gender' column exists
     c.execute("PRAGMA table_info(users)")
     columns = [info[1] for info in c.fetchall()]
     
     if 'gender' not in columns:
         c.execute("ALTER TABLE users ADD COLUMN gender TEXT")
     
-    # Check if 'bmr' column exists
     if 'bmr' not in columns:
-        # We only need the check once, ensuring the BMR column is added if missing
         c.execute("ALTER TABLE users ADD COLUMN bmr REAL")
     
     # 2. Ensure 'activity' table exists
@@ -136,11 +131,30 @@ def get_user(username):
     c = conn.cursor()
     c.execute("SELECT id, username, password, age, height, weight, bmi, goal, gender, bmr FROM users WHERE username=?", (username,))
     row = c.fetchone()
-    conn.close()
+    
     if not row:
+        conn.close()
         return None
+        
     keys = ['id','username','password','age','height','weight','bmi','goal', 'gender', 'bmr']
-    return dict(zip(keys[:len(row)], row)) 
+    user_data = dict(zip(keys[:len(row)], row)) 
+
+    # --- FIX: RECALCULATE AND UPDATE BMR IF IT'S MISSING ---
+    if user_data['bmr'] is None or user_data['bmr'] == 0:
+        new_bmr = calculate_bmr(
+            user_data['gender'], 
+            user_data['weight'], 
+            user_data['height'], 
+            user_data['age']
+        )
+        user_data['bmr'] = new_bmr
+        
+        # Update the database permanently
+        c.execute("UPDATE users SET bmr=? WHERE id=?", (new_bmr, user_data['id']))
+        conn.commit()
+
+    conn.close()
+    return user_data
 
 def add_activity(username, steps, calories, water, sleep):
     conn = sqlite3.connect(DB)
@@ -205,7 +219,6 @@ def get_raw_activity_df(username):
     df = df.rename(columns={'id': 'activity_id'})
     
     # --- FIX: ADD A 1-BASED ROW NUMBER COLUMN ---
-    # Calculate the row numbers (1, 2, 3...)
     df.insert(0, 'No.', range(1, 1 + len(df)))
     
     return df
