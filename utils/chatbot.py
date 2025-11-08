@@ -1,8 +1,8 @@
 # utils/chatbot.py
 import streamlit as st
 import os
-from groq import Groq
-from groq.lib.chat_completion import ChatCompletion
+from groq import Groq # Correct top-level import
+# REMOVED: from groq.lib.chat_completion import ChatCompletion # INCORRECT/DEPRECATED PATH
 
 # --------------------------- #
 # Initialize chat history
@@ -45,7 +45,6 @@ def chat_with_ai(user_input: str) -> str:
     
     # Add conversation history from session state
     for message in st.session_state.chat_history:
-        # The Groq API uses the standard 'user' and 'assistant' roles
         messages.append({"role": message["role"], "content": message["content"]})
 
     # Add the current user prompt
@@ -53,7 +52,8 @@ def chat_with_ai(user_input: str) -> str:
 
     try:
         # 3. Call the Groq Chat Completion API
-        response: ChatCompletion = client.chat.completions.create(
+        # Removed type hint reference to the deprecated ChatCompletion class
+        response = client.chat.completions.create(
             model=MODEL_ID,
             messages=messages,
             temperature=0.7,
