@@ -2,7 +2,9 @@ import streamlit as st
 # --- New Imports for Chatbot ---
 from utils.chatbot import init_chat_history, chat_with_ai
 # --- End of New Imports ---
+# MODIFIED IMPORTS: Added get_raw_activity_df, delete_activity
 from utils.auth import init_db, signup_user, login_user, get_user, add_activity, get_activity_df, get_leaderboard, get_streak, ensure_sample_user, get_raw_activity_df, delete_activity
+# MODIFIED IMPORTS: Replaced plot_pie with plot_correlation
 from utils.recommender import fit_recommender, recommend_exercises, predict_next_day_steps_and_calories
 from utils.charts import plot_progress, plot_correlation, plot_calendar_heatmap 
 import pandas as pd
@@ -53,6 +55,7 @@ with st.sidebar:
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
                     st.success('Account created. Logging in...')
+                    # --- FIX: AUTO-LOGIN AFTER SIGNUP ---
                     st.session_state['auth'] = {'logged_in': True, 'user': su_user}
                     st.rerun() 
                 else:
@@ -114,7 +117,7 @@ if not st.session_state['auth']['logged_in']:
         st.success("3. Conversational Coaching (API Integration)")
         st.markdown(
             """
-            * **API Used:** **Groq** (Model: `llama-3.1-8b-instant`)
+            * **API Used:** **Groq API** (Model: `llama-3.1-8b-instant`)
             * **Function:** Provides instant, personalized advice by injecting the user's **BMI, BMR, and Goal** directly into the LLM's system prompt for highly contextual answers.
             """
         )
@@ -136,10 +139,6 @@ if not st.session_state['auth']['logged_in']:
     st.info("Log in or sign up using the **Access Portal** in the sidebar.")
     st.code("Demo User: rohanpal / 1234")
 
-
-    # =======================================================
-    # --- END ENHANCED LANDING PAGE ---
-    # =======================================================
     
 else:
     # --- DASHBOARD AND CHAT TABS (LOGGED IN VIEW) ---
