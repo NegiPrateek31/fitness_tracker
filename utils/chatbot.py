@@ -8,36 +8,50 @@ from groq import Groq
 # --------------------------- #
 def init_chat_history():
     if "chat_history" not in st.session_state:
-        # History format: [{'role': 'user', 'content': 'hi'}]
         st.session_state["chat_history"] = []
 
 # --------------------------- #
-# Chat function using the Groq SDK
+# Chat function using the Groq SDK (MODIFIED TO ACCEPT user_info)
 # --------------------------- #
-def chat_with_ai(user_input: str) -> str:
+def chat_with_ai(user_input: str, user_info: dict) -> str:
     """Send user input to the Groq API and return the reply."""
     if not user_input.strip():
         return "Please enter a question."
 
     # 1. Configuration
-    # Groq API Key should be set in Streamlit secrets as GROQ_API_KEY
     GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
     if not GROQ_API_KEY:
         return "⚠️ GROQ_API_KEY not found. Please set your Groq API Key in Streamlit secrets."
     
-    # Initialize the Groq client
     client = Groq(api_key=GROQ_API_KEY)
 
-    # --- CRITICAL FIX: USING THE CORRECT, SUPPORTED MODEL ID ---
+    # Use a high-speed, stable model
     MODEL_ID = "llama-3.1-8b-instant" 
 
+    # 2. Dynamic System Prompt: Inject user's stats for context
+    
+    # Extract key stats from user_info (using default values if user is not fully logged in)
+    bmi = user_info.get('bmi', 'Unknown')
+    bmr = user_info.get('bmr', 'Unknown')
+    age = user_info.get('age', 'Unknown')
+    gender = user_info.get('gender', 'Unknown')
+    goal = user_info.get('goal', 'Unknown')
+    
+    context_data = (
+        f"The user's current profile details are: "
+        f"Gender: {gender}, Age: {age}, BMI: {bmi}, "
+        f"Estimated BMR: {bmr} Kcal. "
+        f"The user's current fitness goal is: '{goal}'. "
+        "Tailor all advice, recommendations, and responses specifically to these metrics and goals."
+    )
+    
+    # Final combined system instruction
     system_prompt = (
-        "You are FitBot, an expert AI fitness coach. "
-        "Provide concise, positive, and practical advice "
-        "about exercise, nutrition, and wellness."
+        f"You are FitBot, an expert AI fitness coach. {context_data}. "
+        "Provide concise, positive, and practical advice only. Do not repeat the user's stats back to them unless asked."
     )
 
-    # 2. Construct Messages for the API
+    # 3. Construct Messages for the API
     messages = [
         {"role": "system", "content": system_prompt}
     ]
@@ -50,7 +64,7 @@ def chat_with_ai(user_input: str) -> str:
     messages.append({"role": "user", "content": user_input})
 
     try:
-        # 3. Call the Groq Chat Completion API
+        # 4. Call the Groq Chat Completion API
         response = client.chat.completions.create(
             model=MODEL_ID,
             messages=messages,
