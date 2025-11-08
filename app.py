@@ -52,7 +52,10 @@ with st.sidebar:
                 bmi = round(weight/(height*height),2) if height>0 else 0
                 ok = signup_user(su_user, su_pwd, age, height, weight, bmi, goal, gender)
                 if ok:
-                    st.success('Account created. Please login.')
+                    st.success('Account created. Logging in...')
+                    # --- FIX: AUTO-LOGIN AFTER SIGNUP ---
+                    st.session_state['auth'] = {'logged_in': True, 'user': su_user}
+                    st.rerun() 
                 else:
                     st.error('Username exists.')
     else:
@@ -111,67 +114,72 @@ else:
         st.markdown('---')
         df = get_activity_df(user)
         
-        # Charts and Recommendations
-        chart_col1, chart_col2 = st.columns(2)
-        
-        with chart_col1:
-            fig = plot_progress(df)
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with chart_col2:
-            fig2 = plot_correlation(df)
-            st.plotly_chart(fig2, use_container_width=True)
-            
-        fig3 = plot_calendar_heatmap(df)
-        st.plotly_chart(fig3, use_container_width=True)
-
-        st.subheader('AI Recommendations and Predictions')
-        
-        recommender_models = fit_recommender()
-        recs = recommend_exercises(user, recommender_models, user_info)
-
-        predicted_steps, predicted_calories = predict_next_day_steps_and_calories(user, df)
-
-        st.markdown('**Recommended Exercises (Based on Profile):**')
-        for r in recs:
-            st.write(f'- {r}')
-
-        st.markdown('**Your Predicted Daily Goals:**')
-        col_pred1, col_pred2 = st.columns(2)
-        col_pred1.info(f'Predicted Steps for Tomorrow: **{predicted_steps:,}**')
-        col_pred2.info(f'Predicted Calories to Burn: **{predicted_calories:,}** (Based on your activity trend)')
-        
-        st.subheader('Streak & Leaderboard')
-        streak = get_streak(user)
-        st.write(f'🔥 Current active streak: **{streak} days**')
-        lb = get_leaderboard()
-        st.table(lb)
-        
-        # Manage Logs section
-        st.subheader('Manage Activity Logs')
-        df_log = get_raw_activity_df(user)
-        
-        if df_log.empty:
-            st.info("No logs to manage.")
+        # --- FIX: CONDITIONAL RENDERING FOR NO DATA ---
+        if df.empty:
+            st.info("👋 Welcome! Log your first activity above to see your charts, streaks, and personalized AI predictions.")
         else:
-            st.markdown("Use this section to view or permanently delete past entries.")
+            # Charts and Recommendations
+            chart_col1, chart_col2 = st.columns(2)
             
-            df_display = df_log[['date', 'steps', 'calories', 'water', 'sleep']].head(30)
-            st.dataframe(df_display, use_container_width=True)
-            
-            # Deletion logic
-            activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
-            
-            dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
-            date_to_delete = st.selectbox("Select a date to delete log:", dates_to_delete, key='del_date')
-            
-            if date_to_delete != '- Select Date to Delete -':
-                id_to_delete = activity_id_map[date_to_delete]
+            with chart_col1:
+                fig = plot_progress(df)
+                st.plotly_chart(fig, use_container_width=True)
                 
-                if st.button(f'❌ Delete Log for {date_to_delete}'):
-                    delete_activity(id_to_delete)
-                    st.success(f"Log for {date_to_delete} permanently deleted.")
-                    st.rerun()
+            with chart_col2:
+                fig2 = plot_correlation(df)
+                st.plotly_chart(fig2, use_container_width=True)
+                
+            fig3 = plot_calendar_heatmap(df)
+            st.plotly_chart(fig3, use_container_width=True)
+
+            st.subheader('AI Recommendations and Predictions')
+            
+            recommender_models = fit_recommender()
+            recs = recommend_exercises(user, recommender_models, user_info)
+
+            predicted_steps, predicted_calories = predict_next_day_steps_and_calories(user, df)
+
+            st.markdown('**Recommended Exercises (Based on Profile):**')
+            for r in recs:
+                st.write(f'- {r}')
+
+            st.markdown('**Your Predicted Daily Goals:**')
+            col_pred1, col_pred2 = st.columns(2)
+            col_pred1.info(f'Predicted Steps for Tomorrow: **{predicted_steps:,}**')
+            col_pred2.info(f'Predicted Calories to Burn: **{predicted_calories:,}** (Based on your activity trend)')
+            
+            st.subheader('Streak & Leaderboard')
+            streak = get_streak(user)
+            st.write(f'🔥 Current active streak: **{streak} days**')
+            lb = get_leaderboard()
+            st.table(lb)
+            
+            # Manage Logs section
+            st.subheader('Manage Activity Logs')
+            df_log = get_raw_activity_df(user)
+            
+            if df_log.empty:
+                st.info("No logs to manage.")
+            else:
+                st.markdown("Use this section to view or permanently delete past entries.")
+                
+                df_display = df_log[['date', 'steps', 'calories', 'water', 'sleep']].head(30)
+                st.dataframe(df_display, use_container_width=True)
+                
+                # Deletion logic
+                activity_id_map = dict(zip(df_log['date'], df_log['activity_id']))
+                
+                dates_to_delete = ['- Select Date to Delete -'] + list(df_log['date'])
+                # st.selectbox requires a unique key, which is provided here
+                date_to_delete = st.selectbox("Select a date to delete log:", dates_to_delete, key='del_date')
+                
+                if date_to_delete != '- Select Date to Delete -':
+                    id_to_delete = activity_id_map[date_to_delete]
+                    
+                    if st.button(f'❌ Delete Log for {date_to_delete}'):
+                        delete_activity(id_to_delete)
+                        st.success(f"Log for {date_to_delete} permanently deleted.")
+                        st.rerun()
 
     # --- Chatbot Content (Tab) ---
     with chatbot_tab:
@@ -180,18 +188,18 @@ else:
 
         init_chat_history()
 
-        # --- FIX: SHORTER CONTAINER HEIGHT ---
+        # Shorter outer container height
         chat_container = st.container(height=550)
         
         # 1. DISPLAY CHAT HISTORY
-        # Shorter history container
         with chat_container: 
-            with st.container(height=450):
+            # Shorter history container height
+            with st.container(height=450): 
                 for message in st.session_state.chat_history:
                     with st.chat_message(message["role"]):
                         st.markdown(message["content"])
 
-        # 2. CHAT INPUT (Placed directly below the container to stay at the bottom of the tab)
+        # 2. CHAT INPUT (Fixed at the bottom of the tab)
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
             # Add user message to history
             st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
