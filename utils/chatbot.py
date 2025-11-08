@@ -1,3 +1,4 @@
+# utils/chatbot.py
 import streamlit as st
 import requests 
 import json
@@ -8,10 +9,11 @@ import os
 # --------------------------- #
 def init_chat_history():
     if "chat_history" not in st.session_state:
+        # Chat history stores dictionaries with 'role' and 'content' keys
         st.session_state["chat_history"] = []
 
 # --------------------------- #
-# Chat function with direct HTTP POST request (using Gemma 2B model)
+# Chat function with direct HTTP POST request (using Llama 2 Chat model)
 # --------------------------- #
 def chat_with_ai(user_input: str) -> str:
     """Sends user input via direct HTTP request to the Hugging Face Inference API."""
@@ -23,10 +25,10 @@ def chat_with_ai(user_input: str) -> str:
     if not HF_TOKEN:
         return "⚠️ HF_TOKEN not found. Please set your Hugging Face API Token in Streamlit secrets."
 
-    # --- CRITICAL FIX: UPDATING THE API DOMAIN AS PER THE ERROR MESSAGE ---
-    # The old domain (api-inference.huggingface.co) is gone (410).
-    # New recommended domain from the error message is router.huggingface.co/hf-inference
-    API_URL = "https://router.huggingface.co/hf-inference/models/google/gemma-2b-it" 
+    # --- FINAL FIX: SWITCHING TO STABLE Llama 2 MODEL ---
+    # Llama 2 is highly stable and widely supported on the free router.
+    MODEL_ID = "NousResearch/Llama-2-7b-chat-hf"
+    API_URL = f"https://router.huggingface.co/models/{MODEL_ID}"
     
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
@@ -36,20 +38,27 @@ def chat_with_ai(user_input: str) -> str:
     system_prompt = (
         "You are FitBot, an expert AI fitness coach. "
         "Provide concise, positive, and practical advice "
-        "about exercise, nutrition, and wellness."
+        "about exercise, nutrition and wellness."
     )
 
-    # 2. CONSTRUCT THE FULL PROMPT STRING (Gemma Instruct Format)
-    full_prompt = f"{system_prompt}\n\n"
+    # 2. CONSTRUCT THE FULL PROMPT STRING (Llama 2 Chat Format)
     
-    # Add conversation history
+    # 2a. Start with the System Prompt using the Llama 2 System tags
+    full_prompt = f"<s>[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n" 
+    
+    # 2b. Add conversation history
     for msg in st.session_state.chat_history:
-        role = "User" if msg["role"] == "user" else "Assistant"
-        full_prompt += f"<|{role}|>\n{msg['content']}<|end_of_turn|>\n"
+        if msg["role"] == "user":
+            # User message ends the instruction block
+            full_prompt += f"{msg['content']} [/INST]"
+        elif msg["role"] == "assistant":
+            # Assistant response followed by closing tag and start of new instruction block
+            full_prompt += f" {msg['content']} </s><s>[INST] "
 
-    # Add the current user input and prime the model for its response
-    full_prompt += f"<|User|>\n{user_input}<|end_of_turn|>\n<|Assistant|>\n"
-    
+    # 2c. Add the current user input and prime the model for its response
+    full_prompt += f"{user_input} [/INST]"
+
+
     # 3. Construct the request payload
     payload = {
         "inputs": full_prompt,
@@ -58,7 +67,8 @@ def chat_with_ai(user_input: str) -> str:
             "do_sample": True,
             "temperature": 0.7,
             "return_full_text": False, 
-            "stop_sequences": ["<|end_of_turn|>"]
+            # Stop sequence helps the model stop cleanly after its turn
+            "stop_sequences": ["</s>", "[INST]"]
         }
     }
 
@@ -73,22 +83,25 @@ def chat_with_ai(user_input: str) -> str:
         if isinstance(result, list) and len(result) > 0 and 'generated_text' in result[0]:
             reply = result[0]['generated_text'].strip()
             
-            if reply.endswith("<|end_of_turn|>"):
-                reply = reply[:-len("<|end_of_turn|>")]
+            # Clean up potential tokens
+            if reply.startswith("<s>"):
+                reply = reply[3:].strip()
             
             return reply
         
-        elif isinstance(result, dict) and 'error' in result and 'is currently loading' in result['error']:
-            return f"⚠️ Model is loading. Please wait a moment (est. {result.get('estimated_time', 20):.0f}s) and try again."
-        
+        # Handle model loading or other API errors
         elif isinstance(result, dict) and 'error' in result:
-             return f"⚠️ Inference Error: {result['error']}"
+            if 'is currently loading' in result['error']:
+                 return f"⚠️ Model is loading. Please wait a moment (est. {result.get('estimated_time', 20):.0f}s) and try again."
+            return f"⚠️ Inference Error: {result['error']}"
         
         return "⚠️ Unknown API response format."
 
     except requests.exceptions.RequestException as e:
         error_str = str(e).lower()
-        if "timeout" in error_str:
+        if "404 client error" in error_str:
+             return "⚠️ Network Error: 404. The model endpoint is unavailable. The free router is highly volatile. You may need to try swapping the MODEL_ID again."
+        elif "timeout" in error_str:
             return "⚠️ Request Timed Out. The Hugging Face free server is currently too busy. Please try again later."
         elif "429" in error_str:
             return "⚠️ Rate Limit Exceeded. You have hit the free tier limit. Please wait a few minutes."
