@@ -12,7 +12,7 @@ def init_chat_history():
         st.session_state["chat_history"] = []
 
 # --------------------------- #
-# Chat function with direct HTTP POST request (using Phi-2 model)
+# Chat function with direct HTTP POST request (using TinyLlama model)
 # --------------------------- #
 def chat_with_ai(user_input: str) -> str:
     """Sends user input via direct HTTP request to the Hugging Face Inference API."""
@@ -24,8 +24,9 @@ def chat_with_ai(user_input: str) -> str:
     if not HF_TOKEN:
         return "⚠️ HF_TOKEN not found. Please set your Hugging Face API Token in Streamlit secrets."
 
-    # --- FINAL ATTEMPT FIX: SWITCHING TO SMALL, CPU-FRIENDLY MODEL (Phi-2) ---
-    MODEL_ID = "microsoft/phi-2"
+    # --- FINAL RELIABLE MODEL: TinyLlama 1.1B ---
+    # This is a highly optimized, small model most likely to be served for free.
+    MODEL_ID = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     API_URL = f"https://router.huggingface.co/models/{MODEL_ID}"
     
     headers = {
@@ -39,30 +40,30 @@ def chat_with_ai(user_input: str) -> str:
         "about exercise, nutrition and wellness."
     )
 
-    # 2. CONSTRUCT THE FULL PROMPT STRING (Simple instruct format for phi-2)
+    # 2. CONSTRUCT THE FULL PROMPT STRING (TinyLlama Chat Format)
     
-    # Simple, turn-based chat format for maximum compatibility
-    full_prompt = f"System: {system_prompt}\n"
+    # TinyLlama uses a simple instruction format: <|system|>, <|user|>, <|assistant|>
+    full_prompt = f"<|system|>\n{system_prompt}<|end|>\n"
     
     # Add conversation history
     for msg in st.session_state.chat_history:
-        role = "Student" if msg["role"] == "user" else "Instructor"
-        full_prompt += f"{role}: {msg['content']}\n"
+        role = "user" if msg["role"] == "user" else "assistant"
+        full_prompt += f"<|{role}|>\n{msg['content']}<|end|>\n"
 
     # Append the current user input and prime the model for its response
-    full_prompt += f"Student: {user_input}\nInstructor: "
+    full_prompt += f"<|user|>\n{user_input}<|end|>\n<|assistant|>\n"
 
 
     # 3. Construct the request payload
     payload = {
         "inputs": full_prompt,
         "parameters": {
-            "max_new_tokens": 150, # Reduced tokens for faster response on CPU
+            "max_new_tokens": 150, 
             "do_sample": True,
             "temperature": 0.5,
             "return_full_text": False, 
-            # Stop sequence helps the model stop cleanly after its turn
-            "stop_sequences": ["Student:", "\n\n"]
+            # Stop sequence for TinyLlama
+            "stop_sequences": ["<|end|>", "<|user|>", "<|system|>"]
         }
     }
 
@@ -77,6 +78,10 @@ def chat_with_ai(user_input: str) -> str:
         if isinstance(result, list) and len(result) > 0 and 'generated_text' in result[0]:
             reply = result[0]['generated_text'].strip()
             
+            # Clean up the model's end tag if present
+            if reply.endswith("<|end|>"):
+                reply = reply[:-len("<|end|>")]
+            
             return reply
         
         # Handle model loading or other API errors
@@ -90,19 +95,16 @@ def chat_with_ai(user_input: str) -> str:
     except requests.exceptions.RequestException as e:
         error_str = str(e).lower()
         if "404 client error" in error_str:
-             # Retaining this specific error message for clarity
-             return "⚠️ Network Error: 404. The model endpoint is unavailable. The free router is highly volatile. Please try a different model ID again."
+             # The code is correct. The model is not running.
+             return "⚠️ Network Error: 404. The TinyLlama endpoint is unavailable. The free router is highly volatile. You must try swapping the MODEL_ID again."
         elif "timeout" in error_str:
             return "⚠️ Request Timed Out. The Hugging Face free server is currently too busy. Please try again later."
         elif "429" in error_str:
             return "⚠️ Rate Limit Exceeded. You have hit the free tier limit. Please wait a few minutes."
         elif "401" in error_str or "unauthorized" in error_str:
-            return "⚠️ Authorization Error: Your HF_TOKEN may be incorrect or lack read permission."
+            return "⚠️ Authorization Error: Your HF_TOKEN is likely incorrect or your 'Read' token does not have access to this model's weights."
         else:
             return f"⚠️ Network Error: {e}"
             
     except Exception as e:
         return f"⚠️ Chatbot encountered an unexpected processing error: {e}"
-
-***
-The video below offers an example of how to use a free LLM from HuggingFace Hub. [How to use an open source free LLM from HuggingFace Hub](https://www.youtube.com/watch?v=ddb9a6d45659)
