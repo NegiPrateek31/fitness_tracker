@@ -28,8 +28,8 @@ def chat_with_ai(user_input: str) -> str:
     # Initialize the Groq client
     client = Groq(api_key=GROQ_API_KEY)
 
-    # --- CRITICAL FIX: USING THE NEW, SUPPORTED MODEL ID ---
-    MODEL_ID = "llama-3.1-8b-swift" 
+    # --- CRITICAL FIX: USING THE CORRECT, SUPPORTED MODEL ID ---
+    MODEL_ID = "llama-3.1-8b-instant" 
 
     system_prompt = (
         "You are FitBot, an expert AI fitness coach. "
@@ -68,8 +68,7 @@ def chat_with_ai(user_input: str) -> str:
             return "⚠️ Groq Auth Error: Your GROQ_API_KEY is invalid. Please check your key."
         elif "RateLimitError" in error_str:
             return "⚠️ Groq Rate Limit Exceeded. You have hit the free tier limit. Please wait a minute."
-        # Catch the decommissioned error, though it shouldn't happen with the new ID
-        elif "model_decommissioned" in error_str:
-             return "⚠️ Groq Model Error: The model ID is decommissioned. A new one is required."
+        elif "model_not_found" in error_str:
+             return "⚠️ Groq Model Error: The model ID is correct but may be temporarily unavailable. Try swapping to 'llama-3.3-70b-versatile' if this persists."
         else:
             return f"⚠️ Groq API Error: {e}"
