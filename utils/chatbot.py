@@ -25,7 +25,7 @@ def chat_with_ai(user_input: str) -> str:
         return "⚠️ HF_TOKEN not found. Please set your Hugging Face API Token in Streamlit secrets."
 
     # --- FINAL MODEL ATTEMPT: Switching to Falcon 7B Instruct ---
-    # This is a good alternative model that might be available when others are not.
+    # This model is a good alternative model that might be available when others are not.
     MODEL_ID = "tiiuae/falcon-7b-instruct"
     API_URL = f"https://router.huggingface.co/models/{MODEL_ID}"
     
