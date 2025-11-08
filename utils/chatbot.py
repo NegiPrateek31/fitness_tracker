@@ -1,6 +1,6 @@
 # utils/chatbot.py
 import streamlit as st
-# Ensure this is installed: pip install huggingface-hub
+# Make sure this is installed: pip install huggingface-hub
 from huggingface_hub import InferenceClient
 
 # --------------------------- #
@@ -27,7 +27,7 @@ def get_huggingface_client():
     )
 
 # --------------------------- #
-# Chat function with error handling (Using text_generation with prompt engineering)
+# Chat function (Using text_generation with robust prompt engineering)
 # --------------------------- #
 def chat_with_ai(user_input: str) -> str:
     """Send user input to the Hugging Face Inference API using text_generation."""
@@ -44,32 +44,21 @@ def chat_with_ai(user_input: str) -> str:
         "about exercise, nutrition, and wellness."
     )
     
-    # 1. CONSTRUCT THE FULL PROMPT STRING using the Mistral Instruct Format
-    # This is the reliable method to send chat history via the text-generation endpoint.
+    # 1. CONSTRUCT THE FULL PROMPT STRING using the reliable Instruct Format
     
-    # Start the prompt with the system instruction inside the first instruction block
+    # Start the prompt with the system instruction
     full_prompt = f"<s>[INST] {system_prompt} "
     
-    # Add previous conversation history
+    # Add conversation history
+    # The Mistral instruct format alternates User and Assistant responses within the [INST] tags
     for msg in st.session_state.chat_history:
-        # Note: We assume st.session_state.chat_history stores dictionaries with 'role' and 'content'
         if msg["role"] == "user":
-            # Close the previous turn and start the new user turn
-            full_prompt += f"[/INST]\n\nUser: {msg['content']} [INST] "
+            full_prompt += f"{msg['content']} [/INST]"
         elif msg["role"] == "assistant":
-             # This assumes the assistant's content follows the previous instruction block
-             # We just append the content, letting the final [/INST] handle the formatting
-             full_prompt += f"{msg['content']}"
+            full_prompt += f" {msg['content']} </s><s>[INST] "
 
-    # Add the current user input and prepare the model for generation
-    # The final " [/INST]" signals the start of the model's response
-    # We use a slightly simpler format to avoid unnecessary instruction blocks:
-    full_prompt = f"<s>[INST] {system_prompt}. Conversation History: "
-    for msg in st.session_state.chat_history:
-        role = "User" if msg["role"] == "user" else "Assistant"
-        full_prompt += f"| {role}: {msg['content']} "
-        
-    full_prompt += f"| User: {user_input} [/INST]"
+    # Add the current user input and prime the model for its response
+    full_prompt += f"{user_input} [/INST]"
 
 
     try:
@@ -79,16 +68,16 @@ def chat_with_ai(user_input: str) -> str:
             max_new_tokens=256,
             do_sample=True,
             temperature=0.7,
-            # Stop sequence helps the model stop cleanly
-            stop_sequences=["User:", "</s>", "[INST]"], 
+            # Stop sequence helps the model stop cleanly after its turn
+            stop_sequences=["</s>", "[INST]"], 
             details=False
         )
         
         reply = response.strip()
         
-        # 3. Handle Chat History Update (MUST be done manually as we are using text-generation)
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        # 3. Handle Chat History Update (MUST be done in app.py or here, as text-generation doesn't manage it)
+        # Note: The history update logic should ideally be in app.py right after chat_with_ai returns.
+        # However, for robustness, we'll return the reply and trust the app.py calling logic.
         
         return reply
 
@@ -99,4 +88,7 @@ def chat_with_ai(user_input: str) -> str:
         elif "authorization" in error_str or "401" in error_str or "token" in error_str:
             return "⚠️ Hugging Face Token Error: Check your HF_TOKEN for validity and 'read' permission."
         else:
+            # Catching the specific error from the previous message, just in case
+            if "model" in error_str and "not supported for task" in error_str:
+                 return "⚠️ API Task Error: Configuration mismatch. This model is only accessible via text-generation when correctly prompted."
             return f"⚠️ Chatbot encountered an unexpected error: {e}"
