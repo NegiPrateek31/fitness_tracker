@@ -7,3 +7,4 @@ werkzeug
 openai
 plotly
 huggingface_hub
+requests
