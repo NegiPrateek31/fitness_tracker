@@ -257,30 +257,32 @@ else:
 
         init_chat_history()
 
-        # --- NEW CODE START: Get today's stats for the chatbot ---
-        # Reuse the logic you already have in the Dashboard tab to get today's data
+        # --- NEW CODE: Fetch today's activity ---
         today_date = pd.to_datetime('today').strftime('%Y-%m-%d')
         df_raw = get_raw_activity_df(user)
         today_log = df_raw[df_raw['date'] == today_date]
         
-        # Get actual values or defaults
+        # Get actual steps/calories or default to 0
         current_steps = int(today_log['steps'].iloc[0]) if not today_log.empty else 0
         current_calories = int(today_log['calories'].iloc[0]) if not today_log.empty else 0
         
-        # Inject these into the user_info dictionary
+        # Add these to the user_info dictionary
         user_info['steps'] = current_steps
         user_info['calories'] = current_calories
-        
+        # ----------------------------------------
+
+        with st.container(height=600): 
+            for message in st.session_state.chat_history:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
-            # Add user message to history
             st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
             
-            # Call the Groq-powered backend with user info
+            # Pass the updated user_info (now containing steps!) to the AI
             reply = chat_with_ai(chat_prompt, user_info)
 
-            # Add assistant response to history
             if not reply.startswith("⚠️"):
                 st.session_state.chat_history.append({"role": "assistant", "content": reply})
             
-            # Rerun to update the history display
             st.rerun()
