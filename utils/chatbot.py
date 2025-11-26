@@ -24,6 +24,68 @@ def chat_with_ai(user_input: str, user_info: dict) -> str:
         return "⚠️ GROQ_API_KEY not found. Please set your Groq API Key in Streamlit secrets."
     
     client = Groq(api_key=GROQ_API_KEY)
+    MODEL_ID = "llama-3.1-8b-instant" 
+
+    # 2. Extract Data
+    bmi = user_info.get('bmi', 'Unknown')
+    bmr = user_info.get('bmr', 'Unknown')
+    age = user_info.get('age', 'Unknown')
+    gender = user_info.get('gender', 'Unknown')
+    goal = user_info.get('goal', 'Unknown')
+    
+    # --- CRITICAL NEW PART ---
+    steps = user_info.get('steps', 0)
+    calories = user_info.get('calories', 0)
+    
+    # TERMINAL DEBUG PRINT (Look at your command prompt when you chat!)
+    print(f"DEBUG: AI received Steps={steps}, Calories={calories}") 
+
+    # 3. Build System Prompt
+    context_data = (
+        f"The user's profile: Gender: {gender}, Age: {age}, BMI: {bmi}, BMR: {bmr}. "
+        f"Goal: {goal}. "
+        f"IMPORTANT REAL-TIME DATA: The user has walked {steps} steps and burned {calories} calories TODAY. "
+        "Use this data to give specific advice. If steps are low (<5000), tell them to move more."
+    )
+    
+    system_prompt = (
+        f"You are FitBot, an expert fitness coach. {context_data}"
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt}
+    ]
+    
+    for message in st.session_state.chat_history:
+        messages.append({"role": message["role"], "content": message["content"]})
+
+    messages.append({"role": "user", "content": user_input})
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_ID,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=512, 
+        )
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        return f"⚠️ Groq API Error: {e}"
+
+
+
+'''def chat_with_ai(user_input: str, user_info: dict) -> str:
+    """Send user input to the Groq API and return the reply."""
+    if not user_input.strip():
+        return "Please enter a question."
+
+    # 1. Configuration
+    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
+    if not GROQ_API_KEY:
+        return "⚠️ GROQ_API_KEY not found. Please set your Groq API Key in Streamlit secrets."
+    
+    client = Groq(api_key=GROQ_API_KEY)
 
     # Use a high-speed, stable model
     MODEL_ID = "llama-3.1-8b-instant" 
@@ -90,3 +152,4 @@ def chat_with_ai(user_input: str, user_info: dict) -> str:
              return "⚠️ Groq Model Error: The model ID is correct but may be temporarily unavailable. Try swapping to 'llama-3.3-70b-versatile' if this persists."
         else:
             return f"⚠️ Groq API Error: {e}"
+'''
