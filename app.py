@@ -251,35 +251,41 @@ else:
                         st.rerun()
 
     # --- Chatbot Content (Tab) ---
+   # --- Chatbot Content (Tab) ---
     with chatbot_tab:
         st.title("🤖 AI FitBot")
-        st.markdown("Your personal AI fitness coach. Ask me anything about exercise, nutrition, or wellness!")
-
-        init_chat_history()
-
-        # --- NEW CODE: Fetch today's activity ---
+        
+        # 1. FETCH TODAY'S DATA
         today_date = pd.to_datetime('today').strftime('%Y-%m-%d')
         df_raw = get_raw_activity_df(user)
         today_log = df_raw[df_raw['date'] == today_date]
         
-        # Get actual steps/calories or default to 0
+        # 2. EXTRACT VALUES (OR USE 0 IF NO LOGS)
         current_steps = int(today_log['steps'].iloc[0]) if not today_log.empty else 0
         current_calories = int(today_log['calories'].iloc[0]) if not today_log.empty else 0
         
-        # Add these to the user_info dictionary
+        # 3. DEBUG PRINT (This is the key!)
+        # This will show a blue box in your app confirming the data is ready.
+        st.info(f"🔌 SYSTEM DEBUG: Passing {current_steps} steps and {current_calories} calories to the AI.")
+
+        # 4. UPDATE USER INFO
         user_info['steps'] = current_steps
         user_info['calories'] = current_calories
-        # ----------------------------------------
 
+        # 5. INITIALIZE CHAT
+        init_chat_history()
+        
+        # Display Chat History
         with st.container(height=600): 
             for message in st.session_state.chat_history:
                 with st.chat_message(message["role"]):
                     st.markdown(message["content"])
 
+        # Chat Input
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
             st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
             
-            # Pass the updated user_info (now containing steps!) to the AI
+            # Send the updated user_info to the AI
             reply = chat_with_ai(chat_prompt, user_info)
 
             if not reply.startswith("⚠️"):
