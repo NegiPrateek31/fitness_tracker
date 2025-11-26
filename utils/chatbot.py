@@ -37,11 +37,16 @@ def chat_with_ai(user_input: str, user_info: dict) -> str:
     gender = user_info.get('gender', 'Unknown')
     goal = user_info.get('goal', 'Unknown')
     
+    # --- NEW: Extract Activity Data ---
+    steps = user_info.get('steps', 0)
+    calories = user_info.get('calories', 0)
+    
     context_data = (
         f"The user's current profile details are: "
         f"Gender: {gender}, Age: {age}, BMI: {bmi}, "
         f"Estimated BMR: {bmr} Kcal. "
         f"The user's current fitness goal is: '{goal}'. "
+        f"TODAY'S ACTIVITY SO FAR: {steps} steps taken, {calories} calories burned. "  # <--- Added this line
         "Tailor all advice, recommendations, and responses specifically to these metrics and goals."
     )
     
