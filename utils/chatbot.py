@@ -69,7 +69,6 @@ def chat_with_ai(user_input: str, user_info: dict) -> str:
             model=MODEL_ID,
             messages=messages,
             temperature=0.7,
-            max_tokens=256,
         )
         
         reply = response.choices[0].message.content.strip()
