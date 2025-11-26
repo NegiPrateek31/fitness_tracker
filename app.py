@@ -257,18 +257,20 @@ else:
 
         init_chat_history()
 
-        # 1. CHAT HISTORY CONTAINER (Scrolls within the tab area)
-        # Using a fixed height (e.g., 600px) forces a scrollbar for the history, 
-        # which is the ONLY way to prevent the entire browser page from scrolling 
-        # when new messages are added. This is necessary for the fixed-input feel.
-        with st.container(height=600): 
-            for message in st.session_state.chat_history:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-
-        # 2. CHAT INPUT (Fixed at the bottom of the tab)
-        # This input is placed *below* the fixed-height container, sticking it to the bottom
-        # of the current screen view within the tab.
+        # --- NEW CODE START: Get today's stats for the chatbot ---
+        # Reuse the logic you already have in the Dashboard tab to get today's data
+        today_date = pd.to_datetime('today').strftime('%Y-%m-%d')
+        df_raw = get_raw_activity_df(user)
+        today_log = df_raw[df_raw['date'] == today_date]
+        
+        # Get actual values or defaults
+        current_steps = int(today_log['steps'].iloc[0]) if not today_log.empty else 0
+        current_calories = int(today_log['calories'].iloc[0]) if not today_log.empty else 0
+        
+        # Inject these into the user_info dictionary
+        user_info['steps'] = current_steps
+        user_info['calories'] = current_calories
+        
         if chat_prompt := st.chat_input("Ask a question...", key="chat_input_box"):
             # Add user message to history
             st.session_state.chat_history.append({"role": "user", "content": chat_prompt})
