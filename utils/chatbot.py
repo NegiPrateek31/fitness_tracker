@@ -65,8 +65,7 @@ def chat_with_ai(user_input: str, user_info: dict) -> str:
         response = client.chat.completions.create(
             model=MODEL_ID,
             messages=messages,
-            temperature=0.7,
-            max_tokens=512, 
+            temperature=0.7, 
         )
         return response.choices[0].message.content.strip()
 
