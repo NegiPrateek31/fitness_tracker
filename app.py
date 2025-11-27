@@ -264,10 +264,6 @@ else:
         current_steps = int(today_log['steps'].iloc[0]) if not today_log.empty else 0
         current_calories = int(today_log['calories'].iloc[0]) if not today_log.empty else 0
         
-        # 3. DEBUG PRINT (This is the key!)
-        # This will show a blue box in your app confirming the data is ready.
-        st.info(f"🔌 SYSTEM DEBUG: Passing {current_steps} steps and {current_calories} calories to the AI.")
-
         # 4. UPDATE USER INFO
         user_info['steps'] = current_steps
         user_info['calories'] = current_calories
